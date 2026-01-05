@@ -25,7 +25,7 @@ pub async fn run_debate(
         "markdown" => {
             print_markdown(&result)?;
         }
-        "text" | _ => {
+        _ => {
             print_text(&result)?;
         }
     }

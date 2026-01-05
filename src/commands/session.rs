@@ -38,8 +38,14 @@ pub async fn show_session(name: String) -> anyhow::Result<()> {
     println!("Session: {}", session.name);
     println!("CLI: {}", session.cli);
     println!("Topic: {}", session.topic);
-    println!("Created: {}", session.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
-    println!("Last interaction: {}", session.last_interaction.format("%Y-%m-%d %H:%M:%S UTC"));
+    println!(
+        "Created: {}",
+        session.created_at.format("%Y-%m-%d %H:%M:%S UTC")
+    );
+    println!(
+        "Last interaction: {}",
+        session.last_interaction.format("%Y-%m-%d %H:%M:%S UTC")
+    );
     println!("Turns: {}", session.turns.len());
     println!();
     println!("┌─────────────────────────────────────────────────────────────┐");
@@ -51,7 +57,11 @@ pub async fn show_session(name: String) -> anyhow::Result<()> {
             format!("[{}]", session.cli)
         };
 
-        println!("│ {}: {}                                    │", idx + 1, role_str);
+        println!(
+            "│ {}: {}                                    │",
+            idx + 1,
+            role_str
+        );
         println!("│                                                             │");
 
         // Word wrap content
@@ -70,7 +80,10 @@ pub async fn show_session(name: String) -> anyhow::Result<()> {
     println!("└─────────────────────────────────────────────────────────────┘");
     println!();
     println!("To continue this session, run:");
-    println!("  gptengage invoke {} \"<your message>\" --session {}", session.cli, session.name);
+    println!(
+        "  gptengage invoke {} \"<your message>\" --session {}",
+        session.cli, session.name
+    );
 
     Ok(())
 }

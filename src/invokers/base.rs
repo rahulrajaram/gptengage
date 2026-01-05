@@ -1,7 +1,7 @@
 //! Base invoker implementation with common utilities
 
-use std::process::{Command, Stdio};
 use anyhow::Result;
+use std::process::{Command, Stdio};
 
 /// Execute a command with timeout
 pub async fn execute_command(
@@ -68,5 +68,9 @@ pub async fn execute_command(
 
 /// Check if a command exists in PATH
 pub fn command_exists(cmd: &str) -> bool {
-    Command::new("which").arg(cmd).output().ok().map_or(false, |o| o.status.success())
+    Command::new("which")
+        .arg(cmd)
+        .output()
+        .ok()
+        .is_some_and(|o| o.status.success())
 }

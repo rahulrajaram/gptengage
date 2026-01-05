@@ -1,0 +1,10 @@
+{
+  "allowlist": [
+    {
+      "description": "Example allowlist entry - add verified false positives here",
+      "hash": "example_hash_placeholder",
+      "reason": "This is not a real secret, it's an example placeholder"
+    }
+  ],
+  "note": "Add entries here for verified false positives from TruffleHog scans. Each entry should include a hash (from TruffleHog output), description, and reason for allowlisting."
+}

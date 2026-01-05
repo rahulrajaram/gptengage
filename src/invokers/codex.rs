@@ -22,6 +22,12 @@ impl Invoker for CodexInvoker {
     }
 }
 
+impl Default for CodexInvoker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CodexInvoker {
     pub fn new() -> Self {
         CodexInvoker

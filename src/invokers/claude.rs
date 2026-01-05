@@ -22,6 +22,12 @@ impl Invoker for ClaudeInvoker {
     }
 }
 
+impl Default for ClaudeInvoker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ClaudeInvoker {
     pub fn new() -> Self {
         ClaudeInvoker

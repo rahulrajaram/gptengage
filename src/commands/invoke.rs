@@ -1,6 +1,6 @@
 //! Invoke command - Invoke a specific CLI with optional session support
 
-use crate::invokers::{Invoker, ClaudeInvoker, CodexInvoker, GeminiInvoker};
+use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
 use crate::session::SessionManager;
 
 /// Invoke a specific CLI with a prompt
@@ -26,16 +26,12 @@ pub async fn run_invoke(
 
     // Load existing session if it exists
     let session = if let Some(ref name) = session_name {
-        if let Ok(s) = session_manager
+        session_manager
             .as_ref()
             .unwrap()
             .load_session(name)
             .await
-        {
-            Some(s)
-        } else {
-            None
-        }
+            .ok()
     } else {
         None
     };
@@ -73,7 +69,12 @@ pub async fn run_invoke(
             }
             invoker.invoke(&full_prompt, timeout).await?
         }
-        _ => return Err(anyhow::anyhow!("Unknown CLI: {}. Use 'claude', 'codex', or 'gemini'.", cli)),
+        _ => {
+            return Err(anyhow::anyhow!(
+                "Unknown CLI: {}. Use 'claude', 'codex', or 'gemini'.",
+                cli
+            ))
+        }
     };
 
     // Print response
@@ -84,7 +85,8 @@ pub async fn run_invoke(
         let mut s = if let Some(existing) = session {
             existing
         } else {
-            let topic_str = topic.unwrap_or_else(|| prompt.split('\n').next().unwrap_or("Chat").to_string());
+            let topic_str =
+                topic.unwrap_or_else(|| prompt.split('\n').next().unwrap_or("Chat").to_string());
             manager.create_session(name.clone(), cli.clone(), topic_str)?
         };
 

@@ -1,8 +1,8 @@
 //! Configuration management
 
-use std::path::PathBuf;
-use serde::{Deserialize, Serialize};
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigManager {
@@ -33,16 +33,16 @@ impl ConfigManager {
                 default_debate_rounds: 3,
                 clis: std::collections::HashMap::new(),
             };
-            
+
             // Create config dir if needed
             if !config_dir.exists() {
                 std::fs::create_dir_all(&config_dir)?;
             }
-            
+
             // Write default config
             let content = serde_json::to_string_pretty(&config)?;
             std::fs::write(&config_path, content)?;
-            
+
             Ok(config)
         }
     }
@@ -50,12 +50,22 @@ impl ConfigManager {
     pub fn get_config_dir() -> Result<PathBuf> {
         let home = std::env::var("HOME")
             .ok()
-            .and_then(|h| if h.is_empty() { None } else { Some(PathBuf::from(h)) })
+            .and_then(|h| {
+                if h.is_empty() {
+                    None
+                } else {
+                    Some(PathBuf::from(h))
+                }
+            })
             .or_else(|| {
                 // Fallback for Windows
-                std::env::var("USERPROFILE")
-                    .ok()
-                    .and_then(|h| if h.is_empty() { None } else { Some(PathBuf::from(h)) })
+                std::env::var("USERPROFILE").ok().and_then(|h| {
+                    if h.is_empty() {
+                        None
+                    } else {
+                        Some(PathBuf::from(h))
+                    }
+                })
             })
             .ok_or_else(|| anyhow::anyhow!("Could not find home directory"))?;
         Ok(home.join(".gptengage"))

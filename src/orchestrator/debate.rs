@@ -1,8 +1,8 @@
 //! Debate orchestration - Run multi-round debates
 
-use crate::invokers::{Invoker, ClaudeInvoker, CodexInvoker, GeminiInvoker};
-use tokio::task;
+use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
 use serde::{Deserialize, Serialize};
+use tokio::task;
 
 pub struct DebateOrchestrator;
 
@@ -180,18 +180,16 @@ mod tests {
     fn test_debate_result_creation() {
         let result = DebateResult {
             topic: "Should we use Rust?".to_string(),
-            rounds: vec![
-                vec![
-                    RoundResponse {
-                        cli: "Claude".to_string(),
-                        response: "Yes, Rust is great".to_string(),
-                    },
-                    RoundResponse {
-                        cli: "Gemini".to_string(),
-                        response: "Go is simpler".to_string(),
-                    },
-                ],
-            ],
+            rounds: vec![vec![
+                RoundResponse {
+                    cli: "Claude".to_string(),
+                    response: "Yes, Rust is great".to_string(),
+                },
+                RoundResponse {
+                    cli: "Gemini".to_string(),
+                    response: "Go is simpler".to_string(),
+                },
+            ]],
         };
 
         assert_eq!(result.topic, "Should we use Rust?");
@@ -202,31 +200,30 @@ mod tests {
 
     #[test]
     fn test_debate_result_multiple_rounds() {
-        let mut rounds = Vec::new();
-
         // Round 1
-        rounds.push(vec![
-            RoundResponse {
-                cli: "Claude".to_string(),
-                response: "Round 1: Claude's view".to_string(),
-            },
-            RoundResponse {
-                cli: "Codex".to_string(),
-                response: "Round 1: Codex's view".to_string(),
-            },
-        ]);
-
-        // Round 2
-        rounds.push(vec![
-            RoundResponse {
-                cli: "Claude".to_string(),
-                response: "Round 2: Claude's refined view".to_string(),
-            },
-            RoundResponse {
-                cli: "Codex".to_string(),
-                response: "Round 2: Codex's refined view".to_string(),
-            },
-        ]);
+        let rounds = vec![
+            vec![
+                RoundResponse {
+                    cli: "Claude".to_string(),
+                    response: "Round 1: Claude's view".to_string(),
+                },
+                RoundResponse {
+                    cli: "Codex".to_string(),
+                    response: "Round 1: Codex's view".to_string(),
+                },
+            ],
+            // Round 2
+            vec![
+                RoundResponse {
+                    cli: "Claude".to_string(),
+                    response: "Round 2: Claude's refined view".to_string(),
+                },
+                RoundResponse {
+                    cli: "Codex".to_string(),
+                    response: "Round 2: Codex's refined view".to_string(),
+                },
+            ],
+        ];
 
         let result = DebateResult {
             topic: "Test Topic".to_string(),
@@ -243,18 +240,16 @@ mod tests {
     fn test_debate_result_serialization() {
         let result = DebateResult {
             topic: "Tabs vs Spaces".to_string(),
-            rounds: vec![
-                vec![
-                    RoundResponse {
-                        cli: "Claude".to_string(),
-                        response: "Tabs are consistent".to_string(),
-                    },
-                    RoundResponse {
-                        cli: "Gemini".to_string(),
-                        response: "Spaces are standard".to_string(),
-                    },
-                ],
-            ],
+            rounds: vec![vec![
+                RoundResponse {
+                    cli: "Claude".to_string(),
+                    response: "Tabs are consistent".to_string(),
+                },
+                RoundResponse {
+                    cli: "Gemini".to_string(),
+                    response: "Spaces are standard".to_string(),
+                },
+            ]],
         };
 
         let json = serde_json::to_string(&result).unwrap();
@@ -309,14 +304,10 @@ mod tests {
     fn test_debate_result_with_special_chars() {
         let result = DebateResult {
             topic: "Test with 特殊 characters & symbols! 🚀".to_string(),
-            rounds: vec![
-                vec![
-                    RoundResponse {
-                        cli: "Claude".to_string(),
-                        response: "Response with unicode: émojis: 🎉".to_string(),
-                    },
-                ],
-            ],
+            rounds: vec![vec![RoundResponse {
+                cli: "Claude".to_string(),
+                response: "Response with unicode: émojis: 🎉".to_string(),
+            }]],
         };
 
         let json = serde_json::to_string(&result).unwrap();

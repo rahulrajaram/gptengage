@@ -1,9 +1,9 @@
 //! Session management - Store and manage conversation history
 
-use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Session {
@@ -44,10 +44,17 @@ impl SessionManager {
             return Err(anyhow::anyhow!("Session name cannot be empty"));
         }
         if name.contains("..") || name.contains('/') || name.contains('\\') {
-            return Err(anyhow::anyhow!("Invalid session name: must not contain path separators"));
+            return Err(anyhow::anyhow!(
+                "Invalid session name: must not contain path separators"
+            ));
         }
-        if !name.chars().all(|c| c.is_alphanumeric() || c == '-' || c == '_') {
-            return Err(anyhow::anyhow!("Invalid session name: use only letters, numbers, dashes, and underscores"));
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(anyhow::anyhow!(
+                "Invalid session name: use only letters, numbers, dashes, and underscores"
+            ));
         }
         Ok(())
     }
@@ -71,7 +78,7 @@ impl SessionManager {
         Self::validate_name(name)?;
         let path = self.sessions_dir.join(format!("{}.json", name));
         if !path.exists() {
-             return Err(anyhow::anyhow!("Session '{}' not found", name));
+            return Err(anyhow::anyhow!("Session '{}' not found", name));
         }
         let content = tokio::fs::read_to_string(&path).await?;
         let session = serde_json::from_str(&content)?;
@@ -94,7 +101,7 @@ impl SessionManager {
 
         while let Some(entry) = entries.next_entry().await? {
             let path = entry.path();
-            if path.extension().map_or(false, |ext| ext == "json") {
+            if path.extension().is_some_and(|ext| ext == "json") {
                 if let Ok(content) = tokio::fs::read_to_string(&path).await {
                     if let Ok(session) = serde_json::from_str::<Session>(&content) {
                         summaries.push(SessionSummary {
@@ -145,7 +152,11 @@ impl SessionManager {
         prompt.push_str("[CONVERSATION HISTORY]\n");
 
         for turn in &session.turns {
-            let role = if turn.role == "user" { "User" } else { "Assistant" };
+            let role = if turn.role == "user" {
+                "User"
+            } else {
+                "Assistant"
+            };
             prompt.push_str(&format!("{}: {}\n\n", role, turn.content));
         }
 
@@ -235,7 +246,11 @@ mod tests {
         assert_eq!(session.turns[0].role, "user");
         assert_eq!(session.turns[0].content, "Hello");
 
-        manager.add_turn(&mut session, "assistant".to_string(), "Hi there!".to_string());
+        manager.add_turn(
+            &mut session,
+            "assistant".to_string(),
+            "Hi there!".to_string(),
+        );
         assert_eq!(session.turns.len(), 2);
         assert_eq!(session.turns[1].role, "assistant");
         assert_eq!(session.turns[1].content, "Hi there!");
@@ -267,12 +282,15 @@ mod tests {
             )
             .unwrap();
 
-        manager.add_turn(&mut session, "user".to_string(), "Explain closures".to_string());
+        manager.add_turn(
+            &mut session,
+            "user".to_string(),
+            "Explain closures".to_string(),
+        );
         manager.add_turn(
             &mut session,
             "assistant".to_string(),
-            "Closures are functions that capture variables from their enclosing scope."
-                .to_string(),
+            "Closures are functions that capture variables from their enclosing scope.".to_string(),
         );
 
         let prompt = manager.build_prompt_with_history(&session, "Give an example");
@@ -300,16 +318,16 @@ mod tests {
     fn test_prompt_injection_multiple_turns() {
         let manager = SessionManager::new().unwrap();
         let mut session = manager
-            .create_session("test".to_string(), "claude".to_string(), "Topic".to_string())
+            .create_session(
+                "test".to_string(),
+                "claude".to_string(),
+                "Topic".to_string(),
+            )
             .unwrap();
 
         // Add 3 turns
         for i in 0..3 {
-            manager.add_turn(
-                &mut session,
-                "user".to_string(),
-                format!("Question {}", i),
-            );
+            manager.add_turn(&mut session, "user".to_string(), format!("Question {}", i));
             manager.add_turn(
                 &mut session,
                 "assistant".to_string(),

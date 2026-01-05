@@ -22,6 +22,12 @@ impl Invoker for GeminiInvoker {
     }
 }
 
+impl Default for GeminiInvoker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GeminiInvoker {
     pub fn new() -> Self {
         GeminiInvoker

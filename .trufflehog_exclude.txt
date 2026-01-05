@@ -1,0 +1,33 @@
+# TruffleHog exclusion patterns
+# Files and directories to exclude from secret scanning
+
+# Build artifacts
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Dependencies
+.cargo/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+
+# Test fixtures (if they contain example secrets)
+tests/fixtures/
+
+# Documentation examples (may contain fake keys for illustration)
+docs/examples/
+
+# CI/CD
+.github/
+
+# Temporary files
+*.tmp
+.trufflehog_scan_list.tmp

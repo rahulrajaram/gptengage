@@ -17,3 +17,9 @@ Cargo.lock
 
 # Session and config files (local to user)
 ~/.gptengage/
+
+# TruffleHog temporary files
+.trufflehog_scan_list.tmp
+
+# Editor and system files
+.DS_Store
