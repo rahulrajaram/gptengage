@@ -18,9 +18,11 @@ pub async fn list_sessions() -> anyhow::Result<()> {
 
     for session in sessions {
         let time_ago = format_time_ago(session.last_interaction);
+        // Use chars().take() for UTF-8 safe truncation
+        let truncated_topic: String = session.topic.chars().take(23).collect();
         println!(
             "│ {:<12} │ {:<6} │ {:<23} │ {:<12} │",
-            session.name, session.cli, &session.topic[..session.topic.len().min(23)], time_ago
+            session.name, session.cli, truncated_topic, time_ago
         );
     }
 

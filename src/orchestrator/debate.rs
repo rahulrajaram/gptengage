@@ -129,6 +129,14 @@ impl DebateOrchestrator {
                 round_responses.push(response);
             }
 
+            // Ensure at least one responder per round
+            if round_responses.is_empty() {
+                return Err(anyhow::anyhow!(
+                    "No CLIs available for debate round {}. Please ensure at least one of the following is installed and available: claude, codex, or gemini",
+                    round
+                ));
+            }
+
             rounds.push(round_responses);
         }
 

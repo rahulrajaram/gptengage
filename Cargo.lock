@@ -220,12 +220,13 @@ dependencies = [
 
 [[package]]
 name = "gptengage"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
  "clap",
+ "libc",
  "serde",
  "serde_json",
  "tempfile",

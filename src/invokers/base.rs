@@ -18,6 +18,9 @@ pub async fn execute_command(
 
     let mut child = command.spawn()?;
 
+    // Save the PID before child is consumed by wait_with_output
+    let pid = child.id();
+
     // Write input to stdin
     if let Some(mut stdin) = child.stdin.take() {
         use tokio::io::AsyncWriteExt;
@@ -26,21 +29,38 @@ pub async fn execute_command(
 
     // Wait for completion with timeout
     let timeout_duration = std::time::Duration::from_secs(timeout);
-    match tokio::time::timeout(timeout_duration, async {
-        child.wait_with_output().await
-    }).await {
-        Ok(Ok(output)) => {
-            let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
-            if output.status.success() {
-                Ok(stdout)
-            } else {
-                Err(anyhow::anyhow!("Command failed: {}", stderr))
+    tokio::select! {
+        result = child.wait_with_output() => {
+            match result {
+                Ok(output) => {
+                    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+                    if output.status.success() {
+                        Ok(stdout)
+                    } else {
+                        Err(anyhow::anyhow!("Command failed: {}", stderr))
+                    }
+                }
+                Err(e) => Err(e.into()),
             }
         }
-        Ok(Err(e)) => Err(e.into()),
-        Err(_) => {
+        _ = tokio::time::sleep(timeout_duration) => {
+            // Kill the child process by PID to prevent resource leak
+            if let Some(child_pid) = pid {
+                #[cfg(unix)]
+                {
+                    unsafe {
+                        libc::kill(child_pid as i32, libc::SIGTERM);
+                    }
+                }
+                #[cfg(windows)]
+                {
+                    // Windows termination would require additional crate dependencies
+                    // For now, just log the timeout
+                }
+            }
             Err(anyhow::anyhow!("Command timed out after {} seconds", timeout))
         }
     }

@@ -79,6 +79,23 @@ impl ConfigManager {
             }
             _ => return Err(anyhow::anyhow!("Unknown config key: {}", key)),
         }
+        // Save config to disk after updating
+        self.save()?;
+        Ok(())
+    }
+
+    pub fn save(&self) -> Result<()> {
+        let config_dir = Self::get_config_dir()?;
+        let config_path = config_dir.join("config.json");
+
+        // Create config dir if needed
+        if !config_dir.exists() {
+            std::fs::create_dir_all(&config_dir)?;
+        }
+
+        // Write config
+        let content = serde_json::to_string_pretty(&self)?;
+        std::fs::write(&config_path, content)?;
         Ok(())
     }
 }
