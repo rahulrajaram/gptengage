@@ -1,0 +1,30 @@
+[package]
+name = "gptengage"
+version = "1.0.0"
+edition = "2021"
+description = "Multi-AI CLI orchestrator for Claude Code, Codex, and Gemini"
+license = "MIT"
+repository = "https://github.com/your-org/gptengage"
+authors = ["Your Name <you@example.com>"]
+
+[[bin]]
+name = "gptengage"
+path = "src/main.rs"
+
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.25", features = ["process", "rt-multi-thread", "macros", "sync", "io-util", "time", "fs"] }
+anyhow = "1.0"
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+
+[dev-dependencies]
+tempfile = "3.8"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
