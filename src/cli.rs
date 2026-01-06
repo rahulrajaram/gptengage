@@ -21,6 +21,11 @@ pub enum Commands {
         /// The topic to debate
         topic: String,
 
+        /// Participants in format: cli:persona,cli:persona (e.g., "claude:CEO,claude:Architect,codex:PM")
+        /// If not specified, defaults to claude, codex, and gemini without personas
+        #[arg(long, short = 'p')]
+        participants: Option<String>,
+
         /// Number of debate rounds (default: 3)
         #[arg(long, default_value = "3")]
         rounds: usize,
@@ -121,10 +126,11 @@ impl Cli {
         match self.command {
             Commands::Debate {
                 topic,
+                participants,
                 rounds,
                 output,
                 timeout,
-            } => debate::run_debate(topic, rounds, output, timeout).await,
+            } => debate::run_debate(topic, participants, rounds, output, timeout).await,
 
             Commands::Invoke {
                 cli,

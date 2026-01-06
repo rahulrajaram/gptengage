@@ -1,20 +1,72 @@
 //! Debate command - Multi-AI debate orchestration
 
-use crate::orchestrator::DebateOrchestrator;
+use crate::orchestrator::{DebateOrchestrator, Participant};
 
-/// Run a debate between Claude, Codex, and Gemini
+/// Parse participants from format "cli:persona,cli:persona" or "cli,cli"
+fn parse_participants(participants_str: &str) -> anyhow::Result<Vec<Participant>> {
+    let mut participants = Vec::new();
+
+    for part in participants_str.split(',') {
+        let part = part.trim();
+        if part.is_empty() {
+            continue;
+        }
+
+        let parts: Vec<&str> = part.split(':').collect();
+        match parts.len() {
+            1 => {
+                // Just CLI name, no persona
+                participants.push(Participant::new(parts[0].to_string(), None));
+            }
+            2 => {
+                // CLI:persona format
+                participants.push(Participant::new(
+                    parts[0].to_string(),
+                    Some(parts[1].to_string()),
+                ));
+            }
+            _ => {
+                return Err(anyhow::anyhow!(
+                    "Invalid participant format '{}'. Expected 'cli' or 'cli:persona'",
+                    part
+                ));
+            }
+        }
+    }
+
+    if participants.is_empty() {
+        return Err(anyhow::anyhow!("At least one participant is required"));
+    }
+
+    Ok(participants)
+}
+
+/// Run a debate between specified participants or default CLIs
 pub async fn run_debate(
     topic: String,
+    participants_str: Option<String>,
     rounds: usize,
     output: String,
     timeout: u64,
 ) -> anyhow::Result<()> {
     println!("GPT ENGAGE DEBATE");
     println!("Topic: {}", topic);
-    println!();
 
-    // Run the debate
-    let result = DebateOrchestrator::run_debate(&topic, rounds, timeout).await?;
+    // Parse participants or use defaults
+    let result = if let Some(participants_str) = participants_str {
+        let participants = parse_participants(&participants_str)?;
+        println!("Participants:");
+        for p in &participants {
+            println!("  - {}", p.display_name());
+        }
+        println!();
+        DebateOrchestrator::run_debate_with_participants(&topic, participants, rounds, timeout)
+            .await?
+    } else {
+        println!("Using default participants: Claude, Codex, Gemini");
+        println!();
+        DebateOrchestrator::run_debate(&topic, rounds, timeout).await?
+    };
 
     // Output results based on format
     match output.as_str() {
@@ -39,7 +91,7 @@ fn print_text(result: &crate::orchestrator::DebateResult) -> anyhow::Result<()> 
         println!("────────────────────────────────────────");
 
         for response in responses {
-            println!("{}:", response.cli);
+            println!("{}:", response.display_name());
             println!("{}", response.response);
             println!();
         }
@@ -58,7 +110,7 @@ fn print_markdown(result: &crate::orchestrator::DebateResult) -> anyhow::Result<
         println!();
 
         for response in responses {
-            println!("### {}", response.cli);
+            println!("### {}", response.display_name());
             println!();
             println!("{}", response.response);
             println!();

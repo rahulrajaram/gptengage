@@ -7,9 +7,50 @@ use tokio::task;
 pub struct DebateOrchestrator;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Participant {
+    pub cli: String,
+    pub persona: Option<String>,
+}
+
+impl Participant {
+    pub fn new(cli: String, persona: Option<String>) -> Self {
+        Self { cli, persona }
+    }
+
+    pub fn display_name(&self) -> String {
+        match &self.persona {
+            Some(p) => format!("{} ({})", self.cli, p),
+            None => self.cli.clone(),
+        }
+    }
+
+    pub fn build_prompt_with_persona(&self, base_prompt: &str) -> String {
+        match &self.persona {
+            Some(persona) => {
+                format!(
+                    "[ROLE CONTEXT]\nYou are participating in this debate as a {}. Respond from that perspective, drawing on the expertise, priorities, and viewpoints typical of this role.\n[/ROLE CONTEXT]\n\n{}",
+                    persona, base_prompt
+                )
+            }
+            None => base_prompt.to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoundResponse {
     pub cli: String,
+    pub persona: Option<String>,
     pub response: String,
+}
+
+impl RoundResponse {
+    pub fn display_name(&self) -> String {
+        match &self.persona {
+            Some(p) => format!("{} ({})", self.cli, p),
+            None => self.cli.clone(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,120 +60,100 @@ pub struct DebateResult {
 }
 
 impl DebateOrchestrator {
-    pub async fn run_debate(
+    /// Run a debate with specific participants
+    pub async fn run_debate_with_participants(
         topic: &str,
+        participants: Vec<Participant>,
         num_rounds: usize,
         timeout: u64,
     ) -> anyhow::Result<DebateResult> {
-        let claude = ClaudeInvoker::new();
-        let codex = CodexInvoker::new();
-        let gemini = GeminiInvoker::new();
+        if participants.is_empty() {
+            return Err(anyhow::anyhow!("At least one participant is required"));
+        }
 
         let mut rounds: Vec<Vec<RoundResponse>> = Vec::new();
 
         for round in 1..=num_rounds {
             println!("Running round {} of {}...", round, num_rounds);
 
-            // Build context for this round
-            let mut context = format!("Topic: {}\n\nRound {}\n\n", topic, round);
+            // Build base context for this round
+            let mut base_context = format!("Topic: {}\n\nRound {}\n\n", topic, round);
 
             if round > 1 {
                 if let Some(prev_round) = rounds.last() {
-                    context.push_str("Previous responses:\n");
+                    base_context.push_str("Previous responses:\n");
                     for response in prev_round.iter() {
-                        context.push_str(&format!("{}: {}\n\n", response.cli, response.response));
+                        base_context.push_str(&format!(
+                            "{}: {}\n\n",
+                            response.display_name(),
+                            response.response
+                        ));
                     }
                 }
             }
 
-            context.push_str("Please provide your perspective on this topic.");
+            base_context.push_str("Please provide your perspective on this topic.");
 
-            // Clone invokers for this round
-            let claude_clone = claude.clone();
-            let codex_clone = codex.clone();
-            let gemini_clone = gemini.clone();
+            // Spawn tasks for all participants in parallel
+            let mut tasks = Vec::new();
 
-            // Run all three CLIs in parallel
-            let claude_future = {
-                let ctx = context.clone();
-                task::spawn(async move {
-                    if claude_clone.is_available() {
-                        match claude_clone.invoke(&ctx, timeout).await {
-                            Ok(response) => Some(RoundResponse {
-                                cli: "Claude".to_string(),
-                                response,
-                            }),
-                            Err(e) => {
-                                eprintln!("Claude invocation failed: {}", e);
-                                None
+            for participant in &participants {
+                let participant_clone = participant.clone();
+                let ctx = participant_clone.build_prompt_with_persona(&base_context);
+
+                let task = task::spawn(async move {
+                    let invoker: Box<dyn Invoker> =
+                        match participant_clone.cli.to_lowercase().as_str() {
+                            "claude" => Box::new(ClaudeInvoker::new()),
+                            "codex" => Box::new(CodexInvoker::new()),
+                            "gemini" => Box::new(GeminiInvoker::new()),
+                            _ => {
+                                eprintln!(
+                                    "Unknown CLI '{}', skipping participant",
+                                    participant_clone.cli
+                                );
+                                return None;
                             }
-                        }
-                    } else {
-                        None
+                        };
+
+                    if !invoker.is_available() {
+                        eprintln!(
+                            "{} is not available, skipping",
+                            participant_clone.display_name()
+                        );
+                        return None;
                     }
-                })
-            };
 
-            let codex_future = {
-                let ctx = context.clone();
-                task::spawn(async move {
-                    if codex_clone.is_available() {
-                        match codex_clone.invoke(&ctx, timeout).await {
-                            Ok(response) => Some(RoundResponse {
-                                cli: "Codex".to_string(),
-                                response,
-                            }),
-                            Err(e) => {
-                                eprintln!("Codex invocation failed: {}", e);
-                                None
-                            }
+                    match invoker.invoke(&ctx, timeout).await {
+                        Ok(response) => Some(RoundResponse {
+                            cli: participant_clone.cli.clone(),
+                            persona: participant_clone.persona.clone(),
+                            response,
+                        }),
+                        Err(e) => {
+                            eprintln!(
+                                "{} invocation failed: {}",
+                                participant_clone.display_name(),
+                                e
+                            );
+                            None
                         }
-                    } else {
-                        None
                     }
-                })
-            };
+                });
 
-            let gemini_future = {
-                let ctx = context.clone();
-                task::spawn(async move {
-                    if gemini_clone.is_available() {
-                        match gemini_clone.invoke(&ctx, timeout).await {
-                            Ok(response) => Some(RoundResponse {
-                                cli: "Gemini".to_string(),
-                                response,
-                            }),
-                            Err(e) => {
-                                eprintln!("Gemini invocation failed: {}", e);
-                                None
-                            }
-                        }
-                    } else {
-                        None
-                    }
-                })
-            };
-
-            // Wait for all to complete
-            let (claude_result, codex_result, gemini_result) =
-                tokio::join!(claude_future, codex_future, gemini_future);
-
-            let mut round_responses = Vec::new();
-
-            if let Ok(Some(response)) = claude_result {
-                round_responses.push(response);
+                tasks.push(task);
             }
-            if let Ok(Some(response)) = codex_result {
-                round_responses.push(response);
-            }
-            if let Ok(Some(response)) = gemini_result {
-                round_responses.push(response);
-            }
+
+            // Wait for all tasks to complete
+            let results = futures::future::join_all(tasks).await;
+
+            let round_responses: Vec<RoundResponse> =
+                results.into_iter().flatten().flatten().collect();
 
             // Ensure at least one responder per round
             if round_responses.is_empty() {
                 return Err(anyhow::anyhow!(
-                    "No CLIs available for debate round {}. Please ensure at least one of the following is installed and available: claude, codex, or gemini",
+                    "No participants were able to respond in round {}. Please ensure their CLIs are installed and available.",
                     round
                 ));
             }
@@ -145,6 +166,21 @@ impl DebateOrchestrator {
             rounds,
         })
     }
+
+    /// Run a debate with default participants (Claude, Codex, Gemini without personas)
+    pub async fn run_debate(
+        topic: &str,
+        num_rounds: usize,
+        timeout: u64,
+    ) -> anyhow::Result<DebateResult> {
+        let participants = vec![
+            Participant::new("claude".to_string(), None),
+            Participant::new("codex".to_string(), None),
+            Participant::new("gemini".to_string(), None),
+        ];
+
+        Self::run_debate_with_participants(topic, participants, num_rounds, timeout).await
+    }
 }
 
 #[cfg(test)]
@@ -155,17 +191,34 @@ mod tests {
     fn test_round_response_creation() {
         let response = RoundResponse {
             cli: "Claude".to_string(),
+            persona: None,
             response: "This is Claude's perspective".to_string(),
         };
 
         assert_eq!(response.cli, "Claude");
+        assert_eq!(response.persona, None);
         assert_eq!(response.response, "This is Claude's perspective");
+        assert_eq!(response.display_name(), "Claude");
+    }
+
+    #[test]
+    fn test_round_response_with_persona() {
+        let response = RoundResponse {
+            cli: "Claude".to_string(),
+            persona: Some("CEO".to_string()),
+            response: "From a CEO perspective...".to_string(),
+        };
+
+        assert_eq!(response.cli, "Claude");
+        assert_eq!(response.persona, Some("CEO".to_string()));
+        assert_eq!(response.display_name(), "Claude (CEO)");
     }
 
     #[test]
     fn test_round_response_serialization() {
         let response = RoundResponse {
             cli: "Codex".to_string(),
+            persona: Some("Architect".to_string()),
             response: "This is Codex's perspective".to_string(),
         };
 
@@ -173,6 +226,7 @@ mod tests {
         let deserialized: RoundResponse = serde_json::from_str(&json).unwrap();
 
         assert_eq!(deserialized.cli, "Codex");
+        assert_eq!(deserialized.persona, Some("Architect".to_string()));
         assert_eq!(deserialized.response, "This is Codex's perspective");
     }
 
@@ -183,10 +237,12 @@ mod tests {
             rounds: vec![vec![
                 RoundResponse {
                     cli: "Claude".to_string(),
+                    persona: None,
                     response: "Yes, Rust is great".to_string(),
                 },
                 RoundResponse {
                     cli: "Gemini".to_string(),
+                    persona: None,
                     response: "Go is simpler".to_string(),
                 },
             ]],
@@ -205,10 +261,12 @@ mod tests {
             vec![
                 RoundResponse {
                     cli: "Claude".to_string(),
+                    persona: None,
                     response: "Round 1: Claude's view".to_string(),
                 },
                 RoundResponse {
                     cli: "Codex".to_string(),
+                    persona: None,
                     response: "Round 1: Codex's view".to_string(),
                 },
             ],
@@ -216,10 +274,12 @@ mod tests {
             vec![
                 RoundResponse {
                     cli: "Claude".to_string(),
+                    persona: None,
                     response: "Round 2: Claude's refined view".to_string(),
                 },
                 RoundResponse {
                     cli: "Codex".to_string(),
+                    persona: None,
                     response: "Round 2: Codex's refined view".to_string(),
                 },
             ],
@@ -243,10 +303,12 @@ mod tests {
             rounds: vec![vec![
                 RoundResponse {
                     cli: "Claude".to_string(),
+                    persona: None,
                     response: "Tabs are consistent".to_string(),
                 },
                 RoundResponse {
                     cli: "Gemini".to_string(),
+                    persona: None,
                     response: "Spaces are standard".to_string(),
                 },
             ]],
@@ -275,12 +337,14 @@ mod tests {
     fn test_round_response_clone() {
         let response1 = RoundResponse {
             cli: "Claude".to_string(),
+            persona: Some("CEO".to_string()),
             response: "Test response".to_string(),
         };
 
         let response2 = response1.clone();
 
         assert_eq!(response1.cli, response2.cli);
+        assert_eq!(response1.persona, response2.persona);
         assert_eq!(response1.response, response2.response);
     }
 
@@ -289,6 +353,7 @@ mod tests {
         let long_response = "a".repeat(10000);
         let response = RoundResponse {
             cli: "Claude".to_string(),
+            persona: None,
             response: long_response.clone(),
         };
 
@@ -306,6 +371,7 @@ mod tests {
             topic: "Test with 特殊 characters & symbols! 🚀".to_string(),
             rounds: vec![vec![RoundResponse {
                 cli: "Claude".to_string(),
+                persona: None,
                 response: "Response with unicode: émojis: 🎉".to_string(),
             }]],
         };
@@ -315,5 +381,33 @@ mod tests {
 
         assert!(deserialized.topic.contains("特殊"));
         assert!(deserialized.rounds[0][0].response.contains("🎉"));
+    }
+
+    #[test]
+    fn test_participant_creation() {
+        let p1 = Participant::new("claude".to_string(), None);
+        assert_eq!(p1.cli, "claude");
+        assert_eq!(p1.persona, None);
+        assert_eq!(p1.display_name(), "claude");
+
+        let p2 = Participant::new("claude".to_string(), Some("CEO".to_string()));
+        assert_eq!(p2.cli, "claude");
+        assert_eq!(p2.persona, Some("CEO".to_string()));
+        assert_eq!(p2.display_name(), "claude (CEO)");
+    }
+
+    #[test]
+    fn test_participant_prompt_building() {
+        let base = "Discuss the topic";
+
+        let p1 = Participant::new("claude".to_string(), None);
+        let prompt1 = p1.build_prompt_with_persona(base);
+        assert_eq!(prompt1, base);
+
+        let p2 = Participant::new("claude".to_string(), Some("CEO".to_string()));
+        let prompt2 = p2.build_prompt_with_persona(base);
+        assert!(prompt2.contains("ROLE CONTEXT"));
+        assert!(prompt2.contains("CEO"));
+        assert!(prompt2.contains(base));
     }
 }
