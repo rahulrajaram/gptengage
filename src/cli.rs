@@ -22,9 +22,14 @@ pub enum Commands {
         topic: String,
 
         /// Participants in format: cli:persona,cli:persona (e.g., "claude:CEO,claude:Architect,codex:PM")
-        /// If not specified, defaults to claude, codex, and gemini without personas
-        #[arg(long, short = 'p')]
+        /// Cannot be used with --agent-file
+        #[arg(long, short = 'p', conflicts_with = "agent_file")]
         participants: Option<String>,
+
+        /// Path to agent definition file (JSON) with full agent specifications
+        /// Cannot be used with --participants
+        #[arg(long, conflicts_with = "participants")]
+        agent_file: Option<String>,
 
         /// Number of debate rounds (default: 3)
         #[arg(long, default_value = "3")]
@@ -74,6 +79,29 @@ pub enum Commands {
     /// Manage configuration
     #[command(subcommand)]
     Config(ConfigCommands),
+
+    /// Generate agent definitions for debate participants
+    GenerateAgents {
+        /// The debate topic (used to generate relevant agent personas)
+        #[arg(long)]
+        topic: String,
+
+        /// Comma-separated list of roles to generate (e.g., "CEO,Architect,PM")
+        #[arg(long)]
+        roles: String,
+
+        /// Output file path for generated agent definitions
+        #[arg(long, short = 'o')]
+        output: String,
+
+        /// CLI to use for generation (default: claude)
+        #[arg(long, default_value = "claude")]
+        use_cli: String,
+
+        /// Timeout in seconds
+        #[arg(long, default_value = "120")]
+        timeout: u64,
+    },
 }
 
 #[derive(Subcommand)]
@@ -127,10 +155,11 @@ impl Cli {
             Commands::Debate {
                 topic,
                 participants,
+                agent_file,
                 rounds,
                 output,
                 timeout,
-            } => debate::run_debate(topic, participants, rounds, output, timeout).await,
+            } => debate::run_debate(topic, participants, agent_file, rounds, output, timeout).await,
 
             Commands::Invoke {
                 cli,
@@ -172,6 +201,14 @@ impl Cli {
                     Ok(())
                 }
             },
+
+            Commands::GenerateAgents {
+                topic,
+                roles,
+                output,
+                use_cli,
+                timeout,
+            } => generate_agents::run_generate_agents(topic, roles, output, use_cli, timeout).await,
         }
     }
 }

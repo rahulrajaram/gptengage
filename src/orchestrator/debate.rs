@@ -6,15 +6,124 @@ use tokio::task;
 
 pub struct DebateOrchestrator;
 
+/// Full agent definition with persona, instructions, and metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentDefinition {
+    pub cli: String,
+    pub persona: String,
+    pub instructions: String,
+    #[serde(default)]
+    pub expertise: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub communication_style: Option<String>,
+}
+
+impl AgentDefinition {
+    /// Validate that required fields are non-empty
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.cli.trim().is_empty() {
+            return Err(anyhow::anyhow!("Agent 'cli' field cannot be empty"));
+        }
+        if self.persona.trim().is_empty() {
+            return Err(anyhow::anyhow!(
+                "Agent 'persona' field cannot be empty (required for agent definitions)"
+            ));
+        }
+        if self.instructions.trim().is_empty() {
+            return Err(anyhow::anyhow!(
+                "Agent 'instructions' field cannot be empty (required for agent definitions)"
+            ));
+        }
+        if self.instructions.len() < 10 {
+            return Err(anyhow::anyhow!(
+                "Agent 'instructions' must be at least 10 characters (got {})",
+                self.instructions.len()
+            ));
+        }
+        Ok(())
+    }
+
+    /// Convert to a Participant with enriched prompt building
+    pub fn to_participant(&self) -> Participant {
+        Participant {
+            cli: self.cli.clone(),
+            persona: Some(self.persona.clone()),
+            agent_definition: Some(self.clone()),
+        }
+    }
+}
+
+/// Agent file schema
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AgentFile {
+    #[serde(default = "default_schema_version")]
+    pub schema_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub generated_by: Option<String>,
+    pub participants: Vec<AgentDefinition>,
+}
+
+fn default_schema_version() -> String {
+    "1.0".to_string()
+}
+
+impl AgentFile {
+    /// Load and validate an agent file
+    pub fn load(path: &str) -> anyhow::Result<Self> {
+        let content = std::fs::read_to_string(path)
+            .map_err(|e| anyhow::anyhow!("Failed to read agent file '{}': {}", path, e))?;
+
+        let agent_file: AgentFile = serde_json::from_str(&content)
+            .map_err(|e| anyhow::anyhow!("Failed to parse agent file '{}': {}", path, e))?;
+
+        // Validate schema version
+        if agent_file.schema_version != "1.0" {
+            return Err(anyhow::anyhow!(
+                "Unsupported schema version '{}'. Expected '1.0'",
+                agent_file.schema_version
+            ));
+        }
+
+        // Validate all participants
+        if agent_file.participants.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Agent file must contain at least one participant"
+            ));
+        }
+
+        for (idx, agent) in agent_file.participants.iter().enumerate() {
+            agent.validate().map_err(|e| {
+                anyhow::anyhow!("Validation failed for participant {}: {}", idx + 1, e)
+            })?;
+        }
+
+        Ok(agent_file)
+    }
+
+    /// Convert to a list of Participants
+    pub fn to_participants(&self) -> Vec<Participant> {
+        self.participants
+            .iter()
+            .map(|agent| agent.to_participant())
+            .collect()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Participant {
     pub cli: String,
     pub persona: Option<String>,
+    #[serde(skip)]
+    pub agent_definition: Option<AgentDefinition>,
 }
 
 impl Participant {
     pub fn new(cli: String, persona: Option<String>) -> Self {
-        Self { cli, persona }
+        Self {
+            cli,
+            persona,
+            agent_definition: None,
+        }
     }
 
     pub fn display_name(&self) -> String {
@@ -25,6 +134,26 @@ impl Participant {
     }
 
     pub fn build_prompt_with_persona(&self, base_prompt: &str) -> String {
+        // If we have a full agent definition, use rich context
+        if let Some(agent_def) = &self.agent_definition {
+            let mut context = String::from("[AGENT CONTEXT]\n");
+            context.push_str(&format!("Role: {}\n", agent_def.persona));
+            context.push_str(&format!("Instructions: {}\n", agent_def.instructions));
+
+            if !agent_def.expertise.is_empty() {
+                context.push_str(&format!("Expertise: {}\n", agent_def.expertise.join(", ")));
+            }
+
+            if let Some(style) = &agent_def.communication_style {
+                context.push_str(&format!("Communication Style: {}\n", style));
+            }
+
+            context.push_str("[/AGENT CONTEXT]\n\n");
+            context.push_str(base_prompt);
+            return context;
+        }
+
+        // Fall back to simple persona context
         match &self.persona {
             Some(persona) => {
                 format!(

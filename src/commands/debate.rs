@@ -1,6 +1,6 @@
 //! Debate command - Multi-AI debate orchestration
 
-use crate::orchestrator::{DebateOrchestrator, Participant};
+use crate::orchestrator::{AgentFile, DebateOrchestrator, Participant};
 
 /// Parse participants from format "cli:persona,cli:persona" or "cli,cli"
 fn parse_participants(participants_str: &str) -> anyhow::Result<Vec<Participant>> {
@@ -45,6 +45,7 @@ fn parse_participants(participants_str: &str) -> anyhow::Result<Vec<Participant>
 pub async fn run_debate(
     topic: String,
     participants_str: Option<String>,
+    agent_file_path: Option<String>,
     rounds: usize,
     output: String,
     timeout: u64,
@@ -52,8 +53,21 @@ pub async fn run_debate(
     println!("GPT ENGAGE DEBATE");
     println!("Topic: {}", topic);
 
-    // Parse participants or use defaults
-    let result = if let Some(participants_str) = participants_str {
+    // Parse participants from various sources
+    let result = if let Some(agent_file) = agent_file_path {
+        // Load and validate agent file
+        let agent_file = AgentFile::load(&agent_file)?;
+        let participants = agent_file.to_participants();
+
+        println!("Loaded {} agent(s) from file:", participants.len());
+        for p in &participants {
+            println!("  - {}", p.display_name());
+        }
+        println!();
+
+        DebateOrchestrator::run_debate_with_participants(&topic, participants, rounds, timeout)
+            .await?
+    } else if let Some(participants_str) = participants_str {
         let participants = parse_participants(&participants_str)?;
         println!("Participants:");
         for p in &participants {
