@@ -5,6 +5,7 @@ A unified CLI orchestrator for multiple LLM tools. Run debates between AI system
 ## Features
 
 - **Multi-AI Debates**: Run structured debates between Claude, Codex, and Gemini with configurable rounds
+- **Multi-Instance Debates**: Spawn multiple instances of the same LLM to leverage nondeterminism and debate dynamics
 - **Role-Based Personas**: Assign perspectives (CEO, Architect, PM) for context-specific debates
 - **Agent Definition Files**: Structured JSON with validation for programmatic use by AI agents
 - **AI-Powered Generation**: Auto-generate rich agent definitions using `generate-agents`
@@ -16,9 +17,25 @@ A unified CLI orchestrator for multiple LLM tools. Run debates between AI system
 
 ## For AI Agents (Programmatic Use)
 
-If you are an AI agent using gptengage, follow this workflow:
+If you are an AI agent using gptengage, you have multiple debate options:
 
-### 1. Generate Agent Definitions
+### Option 1: Multi-Instance Debate (Quick & Simple)
+
+For multiple independent evaluations from the same LLM:
+
+```bash
+# 3 Claude instances (leverages nondeterminism)
+gptengage debate "Your topic" --agent claude
+
+# 5 Gemini instances (custom count)
+gptengage debate "Your topic" --agent gemini --instances 5
+```
+
+### Option 2: Agent Definition Files (Full Control)
+
+For structured debates with personas, instructions, and expertise:
+
+**Step 1: Generate Agent Definitions**
 
 ```bash
 gptengage generate-agents \
@@ -29,7 +46,7 @@ gptengage generate-agents \
 
 This creates a validated JSON file with schema version 1.0.
 
-### 2. Run Debate with Agent File
+**Step 2: Run Debate with Agent File**
 
 ```bash
 gptengage debate "Your debate topic" --agent-file agents.json
@@ -269,6 +286,8 @@ Arguments:
   <TOPIC>  The debate topic
 
 Options:
+      --agent <CLI>                  Single CLI to use (claude, codex, or gemini)
+      --instances <N>                Number of instances (default: 3 when --agent specified)
   -p, --participants <PARTICIPANTS>  Participants with personas (format: "cli:persona,cli:persona")
       --agent-file <FILE>            Path to agent definition JSON file
       --rounds <N>                   Number of rounds (default: 3)
@@ -276,14 +295,36 @@ Options:
       --timeout <SECONDS>            Timeout per CLI per round (default: 120)
 ```
 
-#### Simple Debate (No Personas)
+#### Simple Debate (Cross-AI, No Personas)
 
 ```bash
 # Default 3-round debate with Claude, Codex, and Gemini
 gptengage debate "Should we migrate to microservices?"
 ```
 
-#### Debate with Personas (Human-Friendly)
+This mode provides **model diversity** - different LLMs (Claude vs Codex vs Gemini) bring different perspectives.
+
+#### Multi-Instance Debate (Same LLM, Leverages Nondeterminism)
+
+```bash
+# 3 Claude instances (default)
+gptengage debate "Code review best practices" --agent claude
+
+# 5 Gemini instances
+gptengage debate "API design patterns" --agent gemini --instances 5
+
+# Custom rounds
+gptengage debate "Security audit checklist" --agent claude --instances 3 --rounds 4
+```
+
+This mode leverages **LLM nondeterminism** - the same LLM will produce different outputs each time, and participants respond to each other's inputs during the debate. Useful when you want multiple perspectives from the same model.
+
+**When to use:**
+- You want multiple independent evaluations from the same LLM
+- You need diverse viewpoints but prefer a single model's style
+- You're testing for consistency across nondeterministic outputs
+
+#### Debate with Personas (Perspective Diversity)
 
 Assign roles/personas to participants for perspective-based debates:
 

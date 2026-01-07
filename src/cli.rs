@@ -22,6 +22,9 @@ pub enum Commands {
     ///   # Default debate (Claude, Codex, Gemini without personas)
     ///   gptengage debate "Should we migrate to microservices?"
     ///
+    ///   # Multi-instance: 3 Claude instances (leverages nondeterminism)
+    ///   gptengage debate "Code review strategy" --agent claude --instances 3
+    ///
     ///   # With personas (human-friendly format)
     ///   gptengage debate "Tech stack decision" -p "claude:CTO,claude:Architect,codex:Engineer"
     ///
@@ -35,6 +38,35 @@ pub enum Commands {
         /// The topic to debate
         topic: String,
 
+        /// Select a single CLI to use for all participants
+        ///
+        /// Values: claude, codex, gemini
+        ///
+        /// Use with --instances to create multi-instance debates where the same
+        /// LLM debates itself (leveraging nondeterminism and debate dynamics).
+        ///
+        /// Examples:
+        ///   --agent claude --instances 3 (3 Claude instances)
+        ///   --agent gemini --instances 2 (2 Gemini instances)
+        ///
+        /// Cannot be used with --participants or --agent-file
+        #[arg(long, conflicts_with_all = ["participants", "agent_file"], verbatim_doc_comment)]
+        agent: Option<String>,
+
+        /// Number of instances to spawn when using --agent
+        ///
+        /// Creates multiple independent instances of the same CLI. Each instance
+        /// will produce different outputs due to LLM nondeterminism and respond
+        /// to other participants' inputs during the debate.
+        ///
+        /// Default: 3 when --agent is specified
+        ///
+        /// Example: --agent claude --instances 5
+        ///
+        /// Requires --agent to be specified
+        #[arg(long, requires = "agent", verbatim_doc_comment)]
+        instances: Option<usize>,
+
         /// Participants in format: cli:persona,cli:persona
         ///
         /// Format: "cli:persona,cli:persona,..."
@@ -42,8 +74,8 @@ pub enum Commands {
         ///   -p "claude:CEO,claude:Architect,codex:PM"
         ///   -p "claude:Security Expert,gemini:UX Designer"
         ///
-        /// Cannot be used with --agent-file
-        #[arg(long, short = 'p', conflicts_with = "agent_file", verbatim_doc_comment)]
+        /// Cannot be used with --agent-file or --agent
+        #[arg(long, short = 'p', conflicts_with_all = ["agent_file", "agent"], verbatim_doc_comment)]
         participants: Option<String>,
 
         /// Path to agent definition file (JSON) with full agent specifications
@@ -53,8 +85,8 @@ pub enum Commands {
         ///
         /// Example: --agent-file agents.json
         ///
-        /// Cannot be used with --participants
-        #[arg(long, conflicts_with = "participants", verbatim_doc_comment)]
+        /// Cannot be used with --participants or --agent
+        #[arg(long, conflicts_with_all = ["participants", "agent"], verbatim_doc_comment)]
         agent_file: Option<String>,
 
         /// Number of debate rounds (default: 3)
@@ -257,12 +289,26 @@ impl Cli {
         match self.command {
             Commands::Debate {
                 topic,
+                agent,
+                instances,
                 participants,
                 agent_file,
                 rounds,
                 output,
                 timeout,
-            } => debate::run_debate(topic, participants, agent_file, rounds, output, timeout).await,
+            } => {
+                debate::run_debate(debate::DebateOptions {
+                    topic,
+                    agent,
+                    instances,
+                    participants,
+                    agent_file,
+                    rounds,
+                    output,
+                    timeout,
+                })
+                .await
+            }
 
             Commands::Invoke {
                 cli,
