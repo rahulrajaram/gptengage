@@ -5,11 +5,68 @@ A unified CLI orchestrator for multiple LLM tools. Run debates between AI system
 ## Features
 
 - **Multi-AI Debates**: Run structured debates between Claude, Codex, and Gemini with configurable rounds
+- **Role-Based Personas**: Assign perspectives (CEO, Architect, PM) for context-specific debates
+- **Agent Definition Files**: Structured JSON with validation for programmatic use by AI agents
+- **AI-Powered Generation**: Auto-generate rich agent definitions using `generate-agents`
 - **Persistent Sessions**: Maintain conversation history across multiple invocations with automatic context injection
 - **CLI-Only Design**: No API keys required—works with existing CLI installations
 - **Parallel Execution**: All AI systems run simultaneously during debates
 - **Flexible Output Formats**: Text, JSON, or Markdown output for debates
 - **CLI Agnostic**: Extensible architecture supports any CLI-based LLM tool
+
+## For AI Agents (Programmatic Use)
+
+If you are an AI agent using gptengage, follow this workflow:
+
+### 1. Generate Agent Definitions
+
+```bash
+gptengage generate-agents \
+  --topic "Your debate topic" \
+  --roles "Role1,Role2,Role3" \
+  --output agents.json
+```
+
+This creates a validated JSON file with schema version 1.0.
+
+### 2. Run Debate with Agent File
+
+```bash
+gptengage debate "Your debate topic" --agent-file agents.json
+```
+
+**Required fields** in agent files (validated):
+- `cli`: string (non-empty)
+- `persona`: string (non-empty, required)
+- `instructions`: string (min 10 chars, required)
+- `expertise`: array of strings (optional)
+- `communication_style`: string (optional)
+
+**Example agent file:**
+
+```json
+{
+  "schema_version": "1.0",
+  "generated_by": "your-agent-name",
+  "participants": [
+    {
+      "cli": "claude",
+      "persona": "Technical Architect",
+      "instructions": "Focus on scalability, performance, and technical trade-offs. Challenge assumptions and ask clarifying questions.",
+      "expertise": ["system design", "distributed systems", "performance optimization"],
+      "communication_style": "Technical and detailed"
+    }
+  ]
+}
+```
+
+### 3. Parse Output
+
+Use `--output json` for machine-readable output:
+
+```bash
+gptengage debate "topic" --agent-file agents.json --output json > result.json
+```
 
 ## Installation
 
@@ -203,7 +260,7 @@ $ gptengage session end auth-review
 
 ### Debate Command
 
-Run a structured debate between multiple AI systems.
+Run a structured debate between multiple AI systems with optional personas and agent definitions.
 
 ```bash
 gptengage debate <topic> [OPTIONS]
@@ -212,23 +269,158 @@ Arguments:
   <TOPIC>  The debate topic
 
 Options:
-  --rounds <N>         Number of rounds (default: 3)
-  --output <FORMAT>    Output format: text, json, markdown (default: text)
-  --timeout <SECONDS>  Timeout per CLI per round (default: 120)
+  -p, --participants <PARTICIPANTS>  Participants with personas (format: "cli:persona,cli:persona")
+      --agent-file <FILE>            Path to agent definition JSON file
+      --rounds <N>                   Number of rounds (default: 3)
+      --output <FORMAT>              Output format: text, json, markdown (default: text)
+      --timeout <SECONDS>            Timeout per CLI per round (default: 120)
+```
+
+#### Simple Debate (No Personas)
+
+```bash
+# Default 3-round debate with Claude, Codex, and Gemini
+gptengage debate "Should we migrate to microservices?"
+```
+
+#### Debate with Personas (Human-Friendly)
+
+Assign roles/personas to participants for perspective-based debates:
+
+```bash
+# Three Claude instances with different roles
+gptengage debate "Should we adopt Kubernetes?" \
+  -p "claude:CTO,claude:Principal Architect,claude:DevOps Lead"
+
+# Mixed CLIs with personas
+gptengage debate "API design strategy" \
+  -p "claude:Backend Lead,codex:Frontend Lead,gemini:Product Manager"
+
+# 5 rounds with personas and JSON output
+gptengage debate "Microservices vs Monolith" \
+  -p "claude:CEO,claude:Architect,codex:Engineer" \
+  --rounds 5 --output json
+```
+
+#### Debate with Agent Definition Files (For Agents/Programmatic Use)
+
+Agent files provide full structured definitions with instructions, expertise, and communication styles:
+
+```bash
+# Generate agent definitions using AI
+gptengage generate-agents \
+  --topic "Should we migrate to microservices?" \
+  --roles "CEO,Principal Architect,Product Manager" \
+  --output agents.json
+
+# Use the generated agents in a debate
+gptengage debate "Should we migrate to microservices?" \
+  --agent-file agents.json
+```
+
+**Agent file format** (JSON schema version 1.0):
+
+```json
+{
+  "schema_version": "1.0",
+  "generated_by": "gptengage-claude",
+  "participants": [
+    {
+      "cli": "claude",
+      "persona": "CEO",
+      "instructions": "Focus on business impact, ROI, and strategic alignment. Be decisive but ask about risks. Keep responses under 3 paragraphs.",
+      "expertise": ["business strategy", "finance", "leadership", "market analysis"],
+      "communication_style": "Executive - concise and action-oriented"
+    },
+    {
+      "cli": "claude",
+      "persona": "Principal Architect",
+      "instructions": "Evaluate technical feasibility, scalability, and maintainability. Raise concerns about technical debt and long-term consequences.",
+      "expertise": ["system design", "distributed systems", "security", "scalability"],
+      "communication_style": "Technical and thorough"
+    }
+  ]
+}
+```
+
+**Validation:** Agent files enforce strict validation:
+- ✅ `persona` field is required and non-empty
+- ✅ `instructions` field is required (minimum 10 characters)
+- ✅ Schema version must be "1.0"
+- ❌ Fails with clear error message if validation fails
+
+This allows **agents** (programmatic use) to ensure structure while **humans** keep the simple `-p` format.
+
+### Generate Agents Command
+
+**FOR AGENTS/PROGRAMMATIC USE:** Generate AI-powered agent definitions with full structured metadata.
+
+```bash
+gptengage generate-agents --topic <TOPIC> --roles <ROLES> --output <FILE> [OPTIONS]
+
+Required:
+  --topic <TOPIC>   The debate topic (provides context for agent generation)
+  --roles <ROLES>   Comma-separated list of roles (e.g., "CEO,Architect,PM")
+  --output <FILE>   Output file path for the generated JSON
+
+Options:
+  --use-cli <CLI>   CLI to use for generation: claude, codex, gemini (default: claude)
+  --timeout <SECS>  Timeout in seconds (default: 120)
 ```
 
 **Examples:**
 
 ```bash
-# Simple 3-round debate
-gptengage debate "Tabs or spaces?"
+# Generate 3 agents for a microservices debate
+gptengage generate-agents \
+  --topic "Should we migrate to microservices?" \
+  --roles "CEO,Principal Architect,Product Manager" \
+  --output agents.json
 
-# 5-round debate with JSON output
-gptengage debate "Should we migrate to Rust?" --rounds 5 --output json
+# Use Codex instead of Claude for generation
+gptengage generate-agents \
+  --topic "API design strategy" \
+  --roles "Backend Lead,Frontend Lead,DBA" \
+  --output api-agents.json \
+  --use-cli codex
 
-# Markdown output for documentation
-gptengage debate "REST vs GraphQL" --output markdown > debate.md
+# Generate security-focused agents
+gptengage generate-agents \
+  --topic "Cloud security audit findings" \
+  --roles "CISO,Security Architect,Compliance Officer" \
+  --output security-agents.json
 ```
+
+**What it does:**
+
+1. Uses AI (Claude/Codex/Gemini) to generate detailed agent definitions
+2. Creates structured JSON with:
+   - **persona**: Role name (e.g., "CEO", "Principal Architect")
+   - **instructions**: Detailed behavioral instructions (2-4 sentences)
+   - **expertise**: Array of 3-5 expertise areas
+   - **communication_style**: How this role communicates
+3. Validates all fields before saving
+4. Outputs ready-to-use JSON file with schema version 1.0
+
+**Output:**
+
+```
+✅ Generated 3 agent definition(s)
+📄 Saved to: agents.json
+
+Agents:
+  - claude (CEO)
+  - claude (Principal Architect)
+  - codex (Product Manager)
+
+Use with: gptengage debate "Should we migrate to microservices?" --agent-file agents.json
+```
+
+**Why use this?**
+
+- **For agents**: Ensures strict validation and structured output
+- **For complex debates**: Rich context injection with instructions and expertise
+- **For repeatability**: Save and reuse agent definitions across multiple debates
 
 ### Status Command
 
