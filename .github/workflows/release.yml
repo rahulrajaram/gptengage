@@ -1,0 +1,115 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+
+  build-release:
+    name: Build Release (${{ matrix.target }})
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: gptengage
+            asset_name: gptengage-linux-amd64
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            artifact_name: gptengage
+            asset_name: gptengage-linux-musl-amd64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: gptengage
+            asset_name: gptengage-darwin-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: gptengage
+            asset_name: gptengage-darwin-arm64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Install musl-tools (Linux musl only)
+        if: matrix.target == 'x86_64-unknown-linux-musl'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - name: Build release binary
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Create tarball (Unix)
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar -czvf ../../../${{ matrix.asset_name }}-${{ needs.create-release.outputs.version }}.tar.gz ${{ matrix.artifact_name }}
+
+      - name: Upload Release Asset
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ${{ matrix.asset_name }}-${{ needs.create-release.outputs.version }}.tar.gz
+
+  # Create checksums file
+  checksums:
+    name: Generate Checksums
+    needs: [create-release, build-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Download release assets
+        run: |
+          gh release download ${{ github.ref_name }} -D release-assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Generate SHA256 checksums
+        run: |
+          cd release-assets
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Upload checksums
+        uses: softprops/action-gh-release@v1
+        with:
+          files: release-assets/SHA256SUMS.txt

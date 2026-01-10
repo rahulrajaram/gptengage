@@ -76,8 +76,25 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings
 
   build:
-    name: Build Release
-    runs-on: ubuntu-latest
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    needs: [test, fmt, clippy]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: gptengage
+            asset_name: gptengage-linux-amd64
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: gptengage
+            asset_name: gptengage-darwin-amd64
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: gptengage
+            asset_name: gptengage-darwin-arm64
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -86,6 +103,48 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
+          target: ${{ matrix.target }}
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo index
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/git
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Cache cargo build
+        uses: actions/cache@v4
+        with:
+          path: target
+          key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build release
-        run: cargo build --release --verbose
+        run: cargo build --release --target ${{ matrix.target }} --verbose
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          if-no-files-found: error
+
+  # Minimum Supported Rust Version check
+  msrv:
+    name: MSRV Check (Rust 1.75)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: "1.75"
+
+      - name: Check MSRV
+        run: cargo check --all-features

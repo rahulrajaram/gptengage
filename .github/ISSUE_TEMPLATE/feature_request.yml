@@ -1,0 +1,85 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for gptengage
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+assignees:
+  - rahulrajaram
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to suggest a feature!
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: A clear description of what problem this feature would solve
+      placeholder: I'm frustrated when trying to... / It would be great if...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Describe the solution you'd like to see
+      placeholder: |
+        I would like gptengage to...
+
+        Example usage:
+        ```bash
+        gptengage new-command --option value
+        ```
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any alternative solutions or workarounds you've considered
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Feature Scope
+      description: What area of gptengage does this affect?
+      options:
+        - CLI Commands
+        - Debate Feature
+        - Session Management
+        - Agent Definitions
+        - Output Formats
+        - Configuration
+        - Documentation
+        - CI/CD
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How important is this feature to you?
+      options:
+        - Nice to have
+        - Would improve my workflow
+        - Critical for my use case
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Would you be interested in contributing this feature?
+      options:
+        - label: I would be willing to submit a PR for this feature
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Add any other context, screenshots, or examples about the feature request

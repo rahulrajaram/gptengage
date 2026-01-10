@@ -1,0 +1,25 @@
+# CODEOWNERS - defines code ownership for automatic review requests
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owner for everything in the repo
+* @rahulrajaram
+
+# CI/CD and GitHub workflows
+/.github/ @rahulrajaram
+
+# Core source code
+/src/ @rahulrajaram
+
+# Documentation
+*.md @rahulrajaram
+/docs/ @rahulrajaram
+
+# Configuration files
+Cargo.toml @rahulrajaram
+Cargo.lock @rahulrajaram
+deny.toml @rahulrajaram
+
+# Security-sensitive files
+/scripts/check_secrets.py @rahulrajaram
+/.trufflehog_exclude.txt @rahulrajaram
+/allow.json @rahulrajaram
