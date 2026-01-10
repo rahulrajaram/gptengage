@@ -6,9 +6,20 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigManager {
+    #[serde(default = "default_timeout")]
     pub default_timeout: u64,
+    #[serde(default = "default_debate_rounds")]
     pub default_debate_rounds: usize,
+    #[serde(default)]
     pub clis: std::collections::HashMap<String, CliConfig>,
+}
+
+fn default_timeout() -> u64 {
+    120
+}
+
+fn default_debate_rounds() -> usize {
+    3
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

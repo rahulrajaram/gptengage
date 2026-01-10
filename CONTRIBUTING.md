@@ -46,6 +46,7 @@ gptengage/
 │   ├── commands/            # Command implementations
 │   │   ├── mod.rs
 │   │   ├── debate.rs        # Debate orchestration
+│   │   ├── generate_agents.rs # Agent definition generation
 │   │   ├── invoke.rs        # Single CLI invocation
 │   │   ├── session.rs       # Session management
 │   │   └── status.rs        # Status display
@@ -59,7 +60,8 @@ gptengage/
 │   │   └── gemini.rs        # Gemini invoker
 │   ├── orchestrator/        # Multi-AI orchestration
 │   │   ├── mod.rs
-│   │   └── debate.rs        # Debate logic
+│   │   ├── debate.rs        # Debate logic
+│   │   └── agent.rs         # Agent definitions (AgentFile, AgentDefinition)
 │   ├── session/             # Session persistence
 │   │   └── mod.rs
 │   └── utils/               # Utilities
@@ -70,10 +72,13 @@ gptengage/
 ├── README.md                # Project readme
 ├── CONTRIBUTING.md          # This file
 ├── LICENSE                  # MIT License
-└── docs/
-    ├── COMMANDS.md          # Command reference
-    └── EXAMPLES.md          # Usage examples
+├── docs/
+│   ├── COMMANDS.md          # Command reference
+│   └── EXAMPLES.md          # Usage examples
+└── *.json                   # Agent definition files (generated, gitignored)
 ```
+
+**Agent Definition Files**: JSON files (e.g., `agents.json`) contain structured participant definitions with schema version, personas, instructions, expertise, and communication styles. These are generated via `generate-agents` and consumed by `debate --agent-file`.
 
 ## Types of Contributions
 
@@ -267,6 +272,91 @@ let content = tokio::fs::read_to_string(&file).await?;
 let output = invoker.invoke(&content, timeout).await?;
 ```
 
+### CLI Help Text Formatting
+
+Use `verbatim_doc_comment` for multi-line help text with examples:
+
+```rust
+/// Run a multi-AI debate
+///
+/// Examples:
+///   gptengage debate "Topic" --rounds 5
+///   gptengage debate "Topic" --agent claude --instances 3
+///
+/// Cannot be used with --participants
+#[command(verbatim_doc_comment)]  // Preserves formatting in --help
+Debate {
+    /// The topic to debate
+    topic: String,
+
+    /// Number of debate rounds (default: 3)
+    #[arg(long, short = 'r', default_value = "3")]
+    rounds: usize,
+}
+```
+
+### Short Flag Conventions
+
+Follow these conventions for short flags to maintain consistency:
+
+| Flag | Short | Usage |
+|------|-------|-------|
+| `--rounds` | `-r` | Number of rounds/iterations |
+| `--output` | `-o` | Output file or format |
+| `--timeout` | `-t` | Timeout in seconds |
+| `--session` | `-s` | Session name |
+| `--context-file` | `-c` | Context/input file |
+| `--participants` | `-p` | Participant specification |
+
+```rust
+// ✓ Good: Short flags for frequently used options
+#[arg(long, short = 'r', default_value = "3")]
+rounds: usize,
+
+#[arg(long, short = 'o')]
+output: String,
+
+// ✗ Bad: No short flag for common options, or inconsistent letters
+#[arg(long)]  // Missing short flag for frequently used option
+timeout: u64,
+
+#[arg(long, short = 'x')]  // 'x' doesn't relate to 'timeout'
+timeout: u64,
+```
+
+### Error Message Formatting
+
+Provide clear, actionable error messages:
+
+```rust
+// ✓ Good: Clear problem statement with suggestion
+return Err(anyhow::anyhow!(
+    "Unknown CLI '{}'. Use 'claude', 'codex', or 'gemini'",
+    cli_name
+));
+
+// ✓ Good: Include context about what failed
+return Err(anyhow::anyhow!(
+    "Failed to parse agent definitions from response. Error: {}\nResponse: {}",
+    parse_error,
+    response
+));
+
+// ✓ Good: Explain validation failures
+return Err(anyhow::anyhow!(
+    "Generated agent {} ({}) failed validation: {}",
+    idx + 1,
+    agent.persona,
+    validation_error
+));
+
+// ✗ Bad: Vague error message
+return Err(anyhow::anyhow!("Invalid input"));
+
+// ✗ Bad: Technical jargon without explanation
+return Err(anyhow::anyhow!("serde deserialization failed"));
+```
+
 ### Error Handling
 
 ```rust
@@ -313,6 +403,111 @@ mod tests {
 }
 ```
 
+#### Testing Agent File Validation
+
+```rust
+#[test]
+fn test_agent_definition_validation() {
+    // Test valid agent definition
+    let agent = AgentDefinition {
+        cli: "claude".to_string(),
+        persona: "CEO".to_string(),
+        instructions: "Focus on business impact...".to_string(),
+        expertise: vec!["strategy".to_string(), "finance".to_string()],
+        communication_style: "Executive - concise".to_string(),
+    };
+    assert!(agent.validate().is_ok());
+
+    // Test invalid CLI
+    let bad_agent = AgentDefinition {
+        cli: "invalid".to_string(),
+        ..agent.clone()
+    };
+    assert!(bad_agent.validate().is_err());
+
+    // Test empty fields
+    let empty_persona = AgentDefinition {
+        persona: "".to_string(),
+        ..agent.clone()
+    };
+    assert!(empty_persona.validate().is_err());
+}
+
+#[test]
+fn test_agent_file_parsing() {
+    let json = r#"{
+        "schema_version": "1.0",
+        "participants": [{
+            "cli": "claude",
+            "persona": "Engineer",
+            "instructions": "Technical focus",
+            "expertise": ["rust", "systems"],
+            "communication_style": "Technical"
+        }]
+    }"#;
+
+    let agent_file: AgentFile = serde_json::from_str(json).unwrap();
+    assert_eq!(agent_file.participants.len(), 1);
+}
+```
+
+#### Testing Multi-Instance Debates
+
+```rust
+#[tokio::test]
+async fn test_multi_instance_debate() {
+    // Test that --agent with --instances creates correct participant count
+    let options = DebateOptions {
+        topic: "Test".to_string(),
+        agent: Some("claude".to_string()),
+        instances: Some(3),
+        participants: None,
+        agent_file: None,
+        rounds: 1,
+        output: "text".to_string(),
+        timeout: 60,
+    };
+
+    // Verify 3 participants are created
+    let participants = build_participants(&options).unwrap();
+    assert_eq!(participants.len(), 3);
+    assert!(participants.iter().all(|p| p.cli == "claude"));
+}
+```
+
+#### Testing JSON Output Parsing
+
+```rust
+#[test]
+fn test_json_output_format() {
+    let result = DebateResult {
+        topic: "Test topic".to_string(),
+        rounds: vec![/* ... */],
+        consensus: Some("Agreement reached".to_string()),
+    };
+
+    let json = serde_json::to_string_pretty(&result).unwrap();
+    assert!(json.contains("\"topic\""));
+    assert!(json.contains("\"rounds\""));
+
+    // Verify round-trip parsing
+    let parsed: DebateResult = serde_json::from_str(&json).unwrap();
+    assert_eq!(parsed.topic, result.topic);
+}
+
+#[test]
+fn test_extract_json_array() {
+    // Test extraction from LLM response with surrounding text
+    let response = "Here are the agents:\n[{\"cli\": \"claude\"}]\nDone!";
+    let extracted = extract_json_array(response).unwrap();
+    assert_eq!(extracted, "[{\"cli\": \"claude\"}]");
+
+    // Test missing array
+    let bad_response = "No JSON here";
+    assert!(extract_json_array(bad_response).is_err());
+}
+```
+
 ### File Organization
 
 - One module per file or small related modules in one file
@@ -353,6 +548,11 @@ mod tests {
 - [ ] Updated docs/COMMANDS.md if needed
 - [ ] Updated docs/EXAMPLES.md if needed
 - [ ] Added doc comments for public APIs
+
+## CLI Options (if adding/modifying commands)
+- [ ] Updated cli.rs help text if adding options
+- [ ] Added short flags for common options (see Short Flag Conventions)
+- [ ] Exit codes documented (0=success, 1=error, 2=validation error)
 
 ## Code Quality
 - [ ] Formatted: `cargo fmt`
@@ -468,6 +668,198 @@ Commands::NewCmd { arg } => {
 // 5. Test thoroughly
 // 6. Update README.md and docs/COMMANDS.md
 ```
+
+#### Example: Adding a Command with Generation/Subagent Capabilities
+
+For commands that generate content or use AI to create structured output (like `generate-agents`),
+follow this pattern from `src/commands/generate_agents.rs`:
+
+```rust
+// src/commands/generate_cmd.rs
+use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+
+pub async fn run_generate_command(
+    input: String,
+    output_path: String,
+    use_cli: String,
+    timeout: u64,
+) -> anyhow::Result<()> {
+    // 1. Select invoker based on --use-cli flag
+    let invoker: Box<dyn Invoker> = match use_cli.to_lowercase().as_str() {
+        "claude" => Box::new(ClaudeInvoker::new()),
+        "codex" => Box::new(CodexInvoker::new()),
+        "gemini" => Box::new(GeminiInvoker::new()),
+        _ => return Err(anyhow::anyhow!(
+            "Unknown CLI '{}'. Use 'claude', 'codex', or 'gemini'",
+            use_cli
+        )),
+    };
+
+    // 2. Check CLI availability
+    if !invoker.is_available() {
+        return Err(anyhow::anyhow!(
+            "CLI '{}' is not available. Please ensure it's installed and in your PATH",
+            use_cli
+        ));
+    }
+
+    // 3. Build a structured prompt that requests JSON output
+    let prompt = format!(
+        r#"Generate output for: {}
+
+IMPORTANT: Return ONLY valid JSON, no markdown or explanations.
+Format: {{ "field": "value" }}"#,
+        input
+    );
+
+    // 4. Invoke and parse response
+    let response = invoker.invoke(&prompt, timeout).await?;
+    let parsed = parse_json_response(&response)?;
+
+    // 5. Validate the parsed structure
+    parsed.validate()?;
+
+    // 6. Write to output file
+    let json = serde_json::to_string_pretty(&parsed)?;
+    std::fs::write(&output_path, json)?;
+
+    Ok(())
+}
+
+// Helper to extract JSON from LLM response (handles surrounding text)
+fn extract_json(text: &str) -> anyhow::Result<String> {
+    if let Some(start) = text.find('{') {
+        if let Some(end) = text.rfind('}') {
+            if start < end {
+                return Ok(text[start..=end].to_string());
+            }
+        }
+    }
+    Err(anyhow::anyhow!("Could not find valid JSON in response"))
+}
+```
+
+Key patterns:
+- Use `Box<dyn Invoker>` for runtime CLI selection
+- Request structured JSON output in prompts
+- Use `extract_json_array()` or `extract_json()` helpers to handle LLM response variations
+- Validate parsed output before saving
+- Provide actionable error messages with context
+
+### Adding Agent Definition Fields
+
+To extend the `AgentDefinition` schema in `src/orchestrator/agent.rs`:
+
+```rust
+// 1. Add the new field to AgentDefinition struct
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AgentDefinition {
+    pub cli: String,
+    pub persona: String,
+    pub instructions: String,
+    pub expertise: Vec<String>,
+    pub communication_style: String,
+    // Add new field with serde defaults for backward compatibility
+    #[serde(default)]
+    pub temperature: Option<f32>,
+}
+
+// 2. Update the validate() method to validate the new field
+impl AgentDefinition {
+    pub fn validate(&self) -> Result<(), String> {
+        // ... existing validations ...
+
+        // Add validation for new field
+        if let Some(temp) = self.temperature {
+            if !(0.0..=2.0).contains(&temp) {
+                return Err("Temperature must be between 0.0 and 2.0".to_string());
+            }
+        }
+
+        Ok(())
+    }
+}
+
+// 3. Update generate_agents.rs prompt to include new field
+let prompt = format!(
+    r#"Generate agent definitions with these fields:
+- "cli": ...
+- "temperature": Optional float 0.0-2.0 for response variability
+..."#
+);
+
+// 4. Update documentation
+// - docs/COMMANDS.md: Document new field in agent file format
+// - Update schema_version if breaking change
+```
+
+### Updating Validation Rules
+
+To modify validation logic for agent definitions or other structures:
+
+```rust
+// In src/orchestrator/agent.rs or relevant module
+
+impl AgentDefinition {
+    pub fn validate(&self) -> Result<(), String> {
+        // CLI validation - maintain list of supported CLIs
+        let valid_clis = ["claude", "codex", "gemini"];
+        if !valid_clis.contains(&self.cli.to_lowercase().as_str()) {
+            return Err(format!(
+                "Invalid CLI '{}'. Must be one of: {}",
+                self.cli,
+                valid_clis.join(", ")
+            ));
+        }
+
+        // Required field validation
+        if self.persona.trim().is_empty() {
+            return Err("Persona cannot be empty".to_string());
+        }
+
+        if self.instructions.len() < 10 {
+            return Err("Instructions must be at least 10 characters".to_string());
+        }
+
+        // Array validation
+        if self.expertise.is_empty() {
+            return Err("At least one expertise area is required".to_string());
+        }
+
+        if self.expertise.len() > 10 {
+            return Err("Maximum 10 expertise areas allowed".to_string());
+        }
+
+        // String length limits
+        if self.communication_style.len() > 100 {
+            return Err("Communication style must be under 100 characters".to_string());
+        }
+
+        Ok(())
+    }
+}
+
+// Testing validation changes
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_validation_rules() {
+        // Test boundary conditions
+        let agent = AgentDefinition {
+            expertise: vec!["a".to_string(); 11],  // Over limit
+            ..default_agent()
+        };
+        assert!(agent.validate().is_err());
+        assert!(agent.validate().unwrap_err().contains("Maximum 10"));
+    }
+}
+```
+
+Validation best practices:
+- Return descriptive error messages explaining the constraint
+- Test boundary conditions (empty, min, max values)
+- Consider backward compatibility when tightening rules
+- Document validation rules in help text
 
 ## Documentation
 

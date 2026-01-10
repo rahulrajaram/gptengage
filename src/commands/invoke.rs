@@ -47,25 +47,30 @@ pub async fn run_invoke(
     };
 
     // Invoke the appropriate CLI
+    eprintln!("Invoking {}...", cli);
     let response = match cli.as_str() {
         "claude" => {
             let invoker = ClaudeInvoker::new();
             if !invoker.is_available() {
-                return Err(anyhow::anyhow!("Claude Code CLI not found in PATH"));
+                return Err(anyhow::anyhow!(
+                    "Claude Code CLI not found in PATH. Install from: https://claude.ai/code"
+                ));
             }
             invoker.invoke(&full_prompt, timeout).await?
         }
         "codex" => {
             let invoker = CodexInvoker::new();
             if !invoker.is_available() {
-                return Err(anyhow::anyhow!("Codex CLI not found in PATH"));
+                return Err(anyhow::anyhow!(
+                    "Codex CLI not found in PATH. Install from: https://github.com/openai/codex"
+                ));
             }
             invoker.invoke(&full_prompt, timeout).await?
         }
         "gemini" => {
             let invoker = GeminiInvoker::new();
             if !invoker.is_available() {
-                return Err(anyhow::anyhow!("Gemini CLI not found in PATH"));
+                return Err(anyhow::anyhow!("Gemini CLI not found in PATH. Install from: https://ai.google.dev/gemini-api/docs/cli"));
             }
             invoker.invoke(&full_prompt, timeout).await?
         }

@@ -159,6 +159,13 @@ fn print_text(result: &crate::orchestrator::DebateResult) -> anyhow::Result<()> 
     }
 
     println!("DEBATE COMPLETE");
+    println!();
+    println!(
+        "Summary: {} round(s), {} participant(s)",
+        result.rounds.len(),
+        result.rounds.first().map(|r| r.len()).unwrap_or(0)
+    );
+    println!("Tip: Use --output json for machine-readable output");
     Ok(())
 }
 

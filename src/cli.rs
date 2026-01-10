@@ -5,7 +5,35 @@ use clap::{Parser, Subcommand};
 #[derive(Parser)]
 #[command(name = "gptengage")]
 #[command(
-    about = "Multi-AI CLI Orchestrator - Debate & Invoke across Claude Code, Codex, and Gemini"
+    about = "Multi-AI CLI Orchestrator - Debate & Invoke across Claude Code, Codex, and Gemini",
+    long_about = "Multi-AI CLI Orchestrator - Debate & Invoke across Claude Code, Codex, and Gemini
+
+gptengage enables orchestration of multiple AI CLI tools (Claude Code, Codex, Gemini)
+for debates, code reviews, and interactive sessions.
+
+QUICK START:
+    gptengage status                    Check available CLIs
+    gptengage invoke claude \"Hello\"     Simple invocation
+    gptengage debate \"Topic here\"       Multi-AI debate
+
+EXAMPLES:
+    # Check which AI CLIs are available
+    gptengage status
+
+    # Invoke a single AI
+    gptengage invoke claude \"Explain this code\" --context-file src/main.rs
+
+    # Run a debate between all available AIs
+    gptengage debate \"Should we use microservices?\" --rounds 5
+
+    # Run a debate with specific personas
+    gptengage debate \"Tech stack\" -p \"claude:CTO,codex:Architect\"
+
+    # Generate agent definitions for programmatic use
+    gptengage generate-agents --topic \"API design\" --roles \"Lead,PM\" -o agents.json
+    gptengage debate \"API design\" --agent-file agents.json
+
+For detailed help on any command, use: gptengage <command> --help"
 )]
 #[command(version)]
 #[command(author)]
@@ -17,6 +45,12 @@ pub struct Cli {
 #[derive(Subcommand)]
 pub enum Commands {
     /// Run a multi-AI debate (Claude + Codex + Gemini)
+    ///
+    /// TERMINOLOGY NOTE:
+    ///   --agent       Selects a CLI/model (claude, codex, gemini), not an AI agent.
+    ///                 Use with --instances to spawn multiple participants of the same CLI.
+    ///   --agent-file  Structured participant definitions (JSON) for AI agents consuming
+    ///                 this tool programmatically. Generate with 'generate-agents' command.
     ///
     /// Examples:
     ///   # Default debate (Claude, Codex, Gemini without personas)
@@ -90,15 +124,18 @@ pub enum Commands {
         agent_file: Option<String>,
 
         /// Number of debate rounds (default: 3)
-        #[arg(long, default_value = "3")]
+        #[arg(long, short = 'r', default_value = "3")]
         rounds: usize,
 
         /// Output format: text, json, markdown
-        #[arg(long, default_value = "text")]
+        #[arg(long, short = 'o', default_value = "text")]
         output: String,
 
         /// Timeout per CLI invocation in seconds
-        #[arg(long, default_value = "120")]
+        ///
+        /// The CLI process is terminated if it exceeds this duration.
+        /// Default: 120 seconds (2 minutes)
+        #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
         timeout: u64,
     },
 
@@ -131,7 +168,7 @@ pub enum Commands {
         /// injected into subsequent prompts for context continuity.
         ///
         /// Example: --session my-session
-        #[arg(long, verbatim_doc_comment)]
+        #[arg(long, short = 's', verbatim_doc_comment)]
         session: Option<String>,
 
         /// Session topic description
@@ -145,11 +182,14 @@ pub enum Commands {
         ///
         /// File contents are prepended to the prompt.
         /// Example: --context-file src/auth.rs
-        #[arg(long, verbatim_doc_comment)]
+        #[arg(long, short = 'c', verbatim_doc_comment)]
         context_file: Option<String>,
 
         /// Timeout in seconds
-        #[arg(long, default_value = "120")]
+        ///
+        /// The CLI process is terminated if it exceeds this duration.
+        /// Default: 120 seconds (2 minutes)
+        #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
         timeout: u64,
     },
 
@@ -234,7 +274,10 @@ pub enum Commands {
         use_cli: String,
 
         /// Timeout in seconds
-        #[arg(long, default_value = "120")]
+        ///
+        /// The CLI process is terminated if it exceeds this duration.
+        /// Default: 120 seconds (2 minutes)
+        #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
         timeout: u64,
     },
 }

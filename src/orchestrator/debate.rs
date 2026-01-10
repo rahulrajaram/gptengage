@@ -184,6 +184,8 @@ impl RoundResponse {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebateResult {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gptengage_version: Option<String>,
     pub topic: String,
     pub rounds: Vec<Vec<RoundResponse>>,
 }
@@ -291,6 +293,7 @@ impl DebateOrchestrator {
         }
 
         Ok(DebateResult {
+            gptengage_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             topic: topic.to_string(),
             rounds,
         })
@@ -362,6 +365,7 @@ mod tests {
     #[test]
     fn test_debate_result_creation() {
         let result = DebateResult {
+            gptengage_version: Some("0.1.0".to_string()),
             topic: "Should we use Rust?".to_string(),
             rounds: vec![vec![
                 RoundResponse {
@@ -415,6 +419,7 @@ mod tests {
         ];
 
         let result = DebateResult {
+            gptengage_version: None,
             topic: "Test Topic".to_string(),
             rounds,
         };
@@ -428,6 +433,7 @@ mod tests {
     #[test]
     fn test_debate_result_serialization() {
         let result = DebateResult {
+            gptengage_version: Some("0.1.0".to_string()),
             topic: "Tabs vs Spaces".to_string(),
             rounds: vec![vec![
                 RoundResponse {
@@ -454,6 +460,7 @@ mod tests {
     #[test]
     fn test_debate_result_empty_rounds() {
         let result = DebateResult {
+            gptengage_version: None,
             topic: "Empty debate".to_string(),
             rounds: vec![],
         };
@@ -497,6 +504,7 @@ mod tests {
     #[test]
     fn test_debate_result_with_special_chars() {
         let result = DebateResult {
+            gptengage_version: Some("0.1.0".to_string()),
             topic: "Test with 特殊 characters & symbols! 🚀".to_string(),
             rounds: vec![vec![RoundResponse {
                 cli: "Claude".to_string(),

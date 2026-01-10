@@ -55,6 +55,12 @@ pub async fn show_status() -> anyhow::Result<()> {
         }
     }
 
+    println!();
+    println!("Quick start:");
+    println!("  gptengage invoke claude \"Hello\"     # Single invocation");
+    println!("  gptengage debate \"Topic\"            # Multi-AI debate");
+    println!("  gptengage --help                    # Full help");
+
     Ok(())
 }
 

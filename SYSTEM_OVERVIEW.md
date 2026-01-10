@@ -11,18 +11,30 @@
 ### 1.1 High-Level Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                    GPT Engage CLI (Rust)                        │
-│              (Standalone Orchestrator Process)                  │
-└──────────────┬──────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         GPT Engage CLI (Rust)                           │
+│                   (Standalone Orchestrator Process)                     │
+└──────────────┬──────────────────────────────────────────────────────────┘
                │
-       ┌───────┼───────┬─────────┐
-       │       │       │         │
-       ▼       ▼       ▼         ▼
-  ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
-  │Invoke  │ │Debate    │ │Session   │ │Status/Config │
-  │Command │ │Command   │ │Command   │ │Commands      │
-  └────┬───┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘
+       ┌───────┼───────┬─────────┬───────────────┐
+       │       │       │         │               │
+       ▼       ▼       ▼         ▼               ▼
+  ┌────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────────┐
+  │Invoke  │ │Debate    │ │Session   │ │Status/Config │ │Generate Agents │
+  │Command │ │Command   │ │Command   │ │Commands      │ │Command         │
+  └────┬───┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘ └───────┬────────┘
+       │          │            │              │                 │
+       │          │            │              │          ┌──────▼──────┐
+       │          │            │              │          │Agent File   │
+       │          │            │              │          │Validation   │
+       │          │            │              │          │• Schema 1.0 │
+       │          │            │              │          │• Persona req│
+       │          │            │              │          │• Instr >=10 │
+       │          │            │              │          └──────┬──────┘
+       │          │            │              │                 │
+       │          │            │              │          ┌──────▼──────┐
+       │          │            │              │          │agents/*.yaml│
+       │          │            │              │          └─────────────┘
        │          │            │              │
        └──────────┼────────────┬┴──────────────┘
                   │            │
@@ -35,17 +47,24 @@
          │ • Gemini invoker             │
          └────────┬─────────┬───────┬───┘
                   │         │       │
-       ┌──────────▼──┐ ┌────▼────┐ ┌┴──────────┐
-       │ claude -p   │ │codex    │ │gemini    │
-       │<prompt>     │ │exec ... │ │--yolo    │
-       └──────────┬──┘ └────┬────┘ └┬─────────┘
-                  │         │      │
+                  │  ┌──────┴───────┴──────┐
+                  │  │Multi-Instance Debate│
+                  │  │ --agent --instances │
+                  │  │ • Agent file load   │
+                  │  │ • Persona injection │
+                  │  └─────────┬───────────┘
+                  │            │
+       ┌──────────▼──┐ ┌───────▼─────┐ ┌───────────┐
+       │ claude -p   │ │codex        │ │gemini     │
+       │<prompt>     │ │exec ...     │ │--yolo     │
+       └──────────┬──┘ └──────┬──────┘ └┬──────────┘
+                  │           │         │
               [Subprocess Execution with stdin/stdout piping]
-                  │         │      │
-       ┌──────────▼──┐ ┌────▼────┐ ┌┴──────────┐
-       │Claude       │ │Codex    │ │Gemini    │
-       │(Process)    │ │(Process)│ │(Process) │
-       └─────────────┘ └─────────┘ └──────────┘
+                  │           │         │
+       ┌──────────▼──┐ ┌──────▼──────┐ ┌┴──────────┐
+       │Claude       │ │Codex        │ │Gemini     │
+       │(Process)    │ │(Process)    │ │(Process)  │
+       └─────────────┘ └─────────────┘ └───────────┘
 ```
 
 ### 1.2 Key Design Principles
@@ -56,6 +75,16 @@
 4. **Async/Await**: Uses Tokio for non-blocking parallel execution.
 5. **Session Persistence**: Maintains conversation history via JSON files with context injection.
 6. **Error Resilience**: Gracefully handles missing CLIs, timeouts, and failures.
+
+### 1.2.1 Terminology Clarification
+
+> **Important**: This document uses specific terminology that should not be confused:
+>
+> - **"CLI"**: Refers to the underlying LLM command-line tools (claude, codex, gemini) that GPT Engage orchestrates. These are the actual AI assistant programs.
+>
+> - **"--agent flag"**: In debate commands, the `--agent` flag selects which CLI to use for all debate participants (e.g., `--agent claude` runs all instances via Claude Code).
+>
+> - **"Agent file"**: A YAML file (e.g., `agents/my-team.yaml`) containing participant definitions (personas, instructions) used by AI agents consuming GPT Engage. Agent files define *who* participates in a debate, while the `--agent` flag defines *which CLI* executes them.
 
 ### 1.3 Invocation Flows
 
@@ -102,6 +131,45 @@ For each round 1..2:
 Format output (text/json/markdown)
                 ↓
 Display debate results
+```
+
+#### Flow 4: Agent Definition Generation
+```
+User: gptengage generate-agents --count 3 --output agents/my-team.yaml
+                ↓
+Invoke AI (Claude by default) with generation prompt
+                ↓
+Parse YAML response from AI
+                ↓
+Validate agent definitions:
+  ├─ Schema version = "1.0"
+  ├─ Each agent has required 'persona' field
+  ├─ Each agent has 'instructions' >= 10 characters
+  └─ All required fields present
+                ↓
+Write validated YAML to output file
+                ↓
+Display success message with agent summary
+```
+
+#### Flow 5: Multi-Instance Debate
+```
+User: gptengage debate "Design a REST API" --agent claude --instances 3
+                ↓
+Load agent file (if specified via --agent-file)
+                ↓
+Validate agent definitions (personas, instructions)
+                ↓
+For each round:
+  ├─ Build context (topic + previous responses)
+  ├─ Inject persona into each instance's prompt
+  ├─ Spawn N async tasks (all using selected CLI)
+  ├─ Wait for all to complete (or timeout)
+  └─ Collect responses with participant identifiers
+                ↓
+Format output with persona labels
+                ↓
+Display multi-instance debate results
 ```
 
 ---
@@ -244,7 +312,7 @@ Session names are validated to prevent directory traversal:
 
 ### 2.4 Orchestrator Module (`src/orchestrator/`)
 
-Multi-AI debate orchestration.
+Multi-AI debate orchestration with support for both multi-CLI and multi-instance modes.
 
 #### debate.rs
 ```rust
@@ -269,6 +337,49 @@ pub async fn run_debate(
 - Graceful degradation: Works with 1-3 CLIs available
 - Round context: Each round sees previous responses
 - Timeout management: Each CLI has independent timeout
+
+#### Multi-Instance Debate Support
+
+The orchestrator supports running multiple instances of the same CLI with distinct personas:
+
+```
+gptengage debate "topic" --agent claude --instances 3 --agent-file agents/team.yaml
+```
+
+**Flags**:
+- `--agent <cli>`: Select which CLI to use for all participants (claude, codex, gemini)
+- `--instances <n>`: Number of parallel instances to spawn (default: 3)
+- `--agent-file <path>`: YAML file containing participant definitions
+
+**Multi-Instance Algorithm**:
+1. Load and validate agent file (if specified)
+2. For each round:
+   - Build base context (topic + previous responses)
+   - For each instance i in 0..num_instances:
+     - Inject persona[i] into prompt prefix
+     - Spawn async task using selected CLI
+   - Wait for all instances to complete
+   - Collect responses with participant labels
+3. Return DebateResult with persona-labeled responses
+
+**Persona Injection**:
+When an agent file is provided, each instance receives a persona prefix:
+```
+[PERSONA]
+You are: <persona from agent file>
+Instructions: <instructions from agent file>
+[/PERSONA]
+
+<original debate prompt>
+```
+
+**Agent File Loading and Validation**:
+- Loads YAML file from specified path
+- Validates schema version (must be "1.0")
+- Validates each agent definition:
+  - `persona` field is required and non-empty
+  - `instructions` field must be >= 10 characters
+- Falls back to generic "Participant N" labels if no agent file specified
 
 ### 2.5 Configuration Module (`src/config/`)
 
@@ -304,6 +415,61 @@ User configuration management.
 - Auto-generates default config if missing
 - Allows user customization of timeouts and CLI commands
 - Persists detected CLI status
+
+### 2.6 Generate Agents Module (`src/commands/generate_agents.rs`)
+
+AI-powered agent definition generation for multi-instance debates.
+
+#### Purpose
+Automates the creation of agent definition files by leveraging AI to generate diverse, well-structured participant personas. This eliminates the need for manual YAML authoring while ensuring generated definitions meet validation requirements.
+
+#### Input/Output Specification
+
+**Inputs**:
+- `--count <n>`: Number of agents to generate (default: 3)
+- `--output <path>`: Output file path (default: `agents/generated.yaml`)
+- `--topic <string>`: Optional topic context for persona generation
+- `--agent <cli>`: CLI to use for generation (default: claude)
+
+**Outputs**:
+- YAML file containing validated agent definitions
+- Console summary of generated agents
+
+#### Agent File Format (Schema 1.0)
+```yaml
+schema_version: "1.0"
+agents:
+  - name: "Senior Architect"
+    persona: "A seasoned software architect with 15+ years of experience..."
+    instructions: "Focus on system design, scalability, and architectural patterns..."
+  - name: "Security Expert"
+    persona: "A cybersecurity specialist who prioritizes secure coding..."
+    instructions: "Analyze proposals for security implications and vulnerabilities..."
+  - name: "DevOps Engineer"
+    persona: "A pragmatic DevOps engineer focused on deployment and operations..."
+    instructions: "Consider CI/CD, monitoring, and operational concerns..."
+```
+
+#### Validation Rules
+
+All generated agent files are validated before writing:
+
+| Rule | Requirement | Error Message |
+|------|-------------|---------------|
+| Schema Version | Must be exactly `"1.0"` | "Invalid schema version: expected 1.0" |
+| Persona Field | Required, non-empty string | "Agent N: persona field is required" |
+| Instructions Length | Minimum 10 characters | "Agent N: instructions must be at least 10 characters" |
+| Name Field | Optional but recommended | (warning only) |
+| Agents Array | At least 1 agent required | "agents array cannot be empty" |
+
+#### Generation Flow
+1. Build generation prompt with count and optional topic
+2. Invoke selected CLI with structured prompt
+3. Extract YAML from AI response (handles markdown code blocks)
+4. Parse YAML into agent definitions
+5. Validate all definitions against rules
+6. Write validated YAML to output file
+7. Display summary to user
 
 ---
 
@@ -523,6 +689,38 @@ This architecture is designed for extensibility:
 - Update `Session` struct in `src/session/mod.rs`
 - Handle migration from old format
 - Update context injection pattern
+
+### Working with Agent Definitions
+
+#### Adding New Agent Definition Fields
+1. Update the agent struct in `src/agents/mod.rs` (or equivalent)
+2. Add field to the YAML schema documentation
+3. Update validation logic to handle the new field
+4. Update the generation prompt to include the new field
+5. Add tests for the new field validation
+
+#### Extending Validation Rules
+1. Locate validation logic in `src/commands/generate_agents.rs`
+2. Add new validation check with descriptive error message
+3. Update the validation rules table in this document (Section 2.6)
+4. Add unit tests for the new validation rule
+5. Consider backward compatibility with existing agent files
+
+#### Schema Version Upgrades
+When making breaking changes to the agent file format:
+
+1. **Increment schema version**: Update from "1.0" to "1.1" (minor) or "2.0" (major)
+2. **Add migration logic**: Handle loading of old schema versions
+3. **Update validation**: Accept both old and new versions during transition
+4. **Document changes**: Update Section 2.6 with new schema format
+5. **Deprecation path**:
+   - Minor versions (1.x): Maintain backward compatibility
+   - Major versions (2.x): Log deprecation warnings for old format
+   - After 2 releases: Remove support for deprecated versions
+
+**Schema Version Policy**:
+- `1.0` → `1.1`: Additive changes only (new optional fields)
+- `1.x` → `2.0`: Breaking changes (required field changes, structural changes)
 
 ---
 

@@ -10,6 +10,12 @@ Real-world usage scenarios and practical examples.
 - [Content Generation](#content-generation)
 - [Problem Solving](#problem-solving)
 - [Team Collaboration](#team-collaboration)
+- [Advanced Workflows](#advanced-workflows)
+- [Agent-Driven Workflows](#agent-driven-workflows)
+- [Tips for Effective Usage](#tips-for-effective-usage)
+- [Common Patterns](#common-patterns)
+- [For AI Agents](#for-ai-agents)
+- [Performance Tips](#performance-tips)
 
 ---
 
@@ -68,8 +74,8 @@ Get multi-perspective architecture feedback:
 ```bash
 # Run a debate on your architecture choice
 $ gptengage debate "Should our microservice use sync or async database calls?" \
-  --rounds 3 \
-  --output markdown > arch-decision.md
+  -r 3 \
+  -o markdown > arch-decision.md
 
 # Discuss with a single AI
 $ gptengage invoke claude \
@@ -155,13 +161,13 @@ Facilitate a structured technology decision:
 ```bash
 # Run a comprehensive debate
 $ gptengage debate "TypeScript vs JavaScript for our new project" \
-  --rounds 5 \
-  --output markdown > tech-decision.md
+  -r 5 \
+  -o markdown > tech-decision.md
 
 # Follow up with specific question
 $ gptengage invoke claude \
   "Given the team has Python experience, does this change your recommendation?" \
-  --session tech-choice
+  -s tech-choice
 
 # Document the final decision
 $ gptengage session show tech-choice >> tech-decision.md
@@ -174,8 +180,8 @@ Create a formal architecture decision:
 ```bash
 # Get the debate
 $ gptengage debate "Monolithic vs Microservices for a startup" \
-  --rounds 3 \
-  --output markdown > adr.md
+  -r 3 \
+  -o markdown > adr.md
 
 # Add context-specific analysis
 $ gptengage invoke claude \
@@ -198,13 +204,74 @@ Get AI perspectives on feature prioritization:
 ```bash
 # Run a debate on which features to build first
 $ gptengage debate "Should we build offline support or real-time sync first?" \
-  --rounds 3 \
-  --output json > features.json
+  -r 3 \
+  -o json > features.json
 
 # Discuss with your team's decision-maker
 $ gptengage invoke claude \
   "You've analyzed the trade-offs. Which is more valuable for our user base?" \
-  --session feature-priority
+  -s feature-priority
+```
+
+### Scenario: Persona-Based Debates
+
+Use personas to get specialized perspectives on decisions:
+
+```bash
+# Security-focused debate on a new feature
+$ gptengage debate "Should we implement OAuth or custom JWT auth?" \
+  -p security-expert \
+  -r 4 \
+  -o markdown > auth-decision.md
+
+# Performance-focused architecture review
+$ gptengage debate "Which caching strategy is best for our API?" \
+  -p performance-engineer \
+  -r 3 \
+  -o json > caching-analysis.json
+
+# UX-focused product decision
+$ gptengage debate "Should we use infinite scroll or pagination?" \
+  -p ux-advocate \
+  --rounds 3 \
+  --output markdown > ux-decision.md
+
+# Combine persona with context file
+$ gptengage debate "Is this database schema secure?" \
+  -p security-expert \
+  --context-file schema.sql \
+  -r 3 \
+  -o markdown > schema-review.md
+```
+
+### Scenario: Multi-Perspective Technical Review
+
+Get different expert perspectives on the same decision:
+
+```bash
+# First, security perspective
+$ gptengage invoke claude \
+  "Review this API design for security concerns" \
+  -p security-expert \
+  --context-file api-spec.yaml \
+  -s api-review
+
+# Then, performance perspective
+$ gptengage invoke claude \
+  "Review this API design for performance bottlenecks" \
+  -p performance-engineer \
+  --context-file api-spec.yaml \
+  -s api-review
+
+# Finally, usability perspective
+$ gptengage invoke claude \
+  "Review this API design for developer experience" \
+  -p ux-advocate \
+  --context-file api-spec.yaml \
+  -s api-review
+
+# Export the combined review
+$ gptengage session show api-review > api-review-complete.md
 ```
 
 ---
@@ -395,8 +462,8 @@ Create team coding standards:
 ```bash
 # Start with best practices debate
 $ gptengage debate "Should we enforce strict type checking in TypeScript?" \
-  --rounds 3 \
-  --output markdown > coding-standards.md
+  -r 3 \
+  -o markdown > coding-standards.md
 
 # Get specific implementations
 $ gptengage invoke claude \
@@ -419,18 +486,18 @@ Conduct an AI-assisted retrospective:
 ```bash
 # Get perspective on team process
 $ gptengage debate "Was our sprint structure effective?" \
-  --rounds 2 \
-  --output markdown > retro-notes.md
+  -r 2 \
+  -o markdown > retro-notes.md
 
 # Discuss improvements
 $ gptengage invoke claude \
   "Based on these perspectives, what are the top 3 improvements we should try?" \
-  --session retro-improvements
+  -s retro-improvements
 
 # Create action items
 $ gptengage invoke claude \
   "Format these as specific, measurable action items" \
-  --session retro-improvements
+  -s retro-improvements
 ```
 
 ---
@@ -504,6 +571,115 @@ $ gptengage invoke claude \
 
 ---
 
+## Agent-Driven Workflows
+
+### Scenario: Multi-Instance Debates
+
+Run debates with multiple instances of the same AI for diverse perspectives:
+
+```bash
+# Run a debate with 3 Claude instances
+$ gptengage debate "What's the best testing strategy for microservices?" \
+  --agent claude \
+  --instances 3 \
+  -r 4 \
+  -o markdown > testing-strategy.md
+
+# Use 5 instances for more diverse perspectives
+$ gptengage debate "Should we use GraphQL or REST for our API?" \
+  --agent claude \
+  --instances 5 \
+  --rounds 3 \
+  -o json > api-decision.json
+
+# Quick debate with minimal instances
+$ gptengage debate "Is this refactoring worth the effort?" \
+  --agent claude \
+  --instances 2 \
+  -r 2 \
+  -t 60
+```
+
+### Scenario: Generate Agent Definitions
+
+Create reusable agent definition files for complex personas:
+
+```bash
+# Generate agent definition files
+$ gptengage generate-agents
+
+# This creates YAML files in ~/.config/gptengage/agents/
+# - security-expert.yaml
+# - performance-engineer.yaml
+# - ux-advocate.yaml
+# - etc.
+
+# List generated agents
+$ ls ~/.config/gptengage/agents/
+security-expert.yaml  performance-engineer.yaml  ux-advocate.yaml  ...
+```
+
+Example agent definition file (`security-expert.yaml`):
+```yaml
+name: Security Expert
+role: security
+expertise:
+  - vulnerability analysis
+  - secure coding practices
+  - threat modeling
+  - penetration testing
+personality: thorough, cautious, detail-oriented
+focus: identifying security risks and recommending mitigations
+```
+
+### Scenario: Using Generated Agents in Debates
+
+Use your custom agent definitions for specialized debates:
+
+```bash
+# Run a security-focused debate using agent files
+$ gptengage debate "Is our authentication implementation secure?" \
+  -p security-expert \
+  --agent claude \
+  --instances 3 \
+  -o markdown > security-review.md
+
+# Combine multiple personas for comprehensive review
+$ gptengage debate "Should we migrate to a new database?" \
+  --context-file schema.sql \
+  -r 4 \
+  -o json > migration-analysis.json
+```
+
+### Scenario: JSON Output for Programmatic Use
+
+Parse debate output programmatically for automation:
+
+```bash
+# Generate JSON output
+$ gptengage debate "Optimize database queries" \
+  --agent claude \
+  --instances 3 \
+  -o json > debate.json
+
+# Extract the final consensus
+$ jq '.consensus' debate.json
+
+# Get all arguments from a specific round
+$ jq '.rounds[0].arguments' debate.json
+
+# Count total arguments
+$ jq '[.rounds[].arguments[]] | length' debate.json
+
+# Extract participant names
+$ jq '.participants | keys' debate.json
+
+# Get the winning position
+$ jq '.result.winner' debate.json
+```
+
+---
+
 ## Tips for Effective Usage
 
 ### Multi-AI Strategy
@@ -515,11 +691,59 @@ $ gptengage invoke claude \
 # - Gemini: Quick answers, creative thinking
 
 # Use a debate to explore different perspectives
-$ gptengage debate "What's the best approach to this problem?" --rounds 3
+$ gptengage debate "What's the best approach to this problem?" -r 3
 
 # Follow up with specific AIs for their strengths
-$ gptengage invoke claude "Deep analysis" --session followup
-$ gptengage invoke codex "Show me the code" --session followup
+$ gptengage invoke claude "Deep analysis" -s followup
+$ gptengage invoke codex "Show me the code" -s followup
+```
+
+### Multi-Instance vs Cross-AI Debates
+
+Choose the right debate mode for your use case:
+
+```bash
+# Cross-AI debates (default): Use when you want different AI perspectives
+# Each AI (Claude, Codex, Gemini) brings unique strengths and biases
+$ gptengage debate "Which framework should we use?" -r 3
+
+# Multi-instance debates: Use when you want consistent reasoning style
+# Multiple instances of the same AI explore different angles
+$ gptengage debate "Which framework should we use?" \
+  --agent claude \
+  --instances 3 \
+  -r 3
+
+# When to use multi-instance:
+# - You trust one AI's judgment more than others
+# - You want stylistically consistent output
+# - You're building automation that expects consistent response format
+# - You're testing the robustness of an AI's reasoning
+
+# When to use cross-AI:
+# - You want diverse perspectives from different models
+# - You're exploring a topic where different AIs have different expertise
+# - You want to identify blind spots in any single AI's reasoning
+```
+
+### Using Personas Effectively
+
+```bash
+# Generate persona definition files for reuse
+$ gptengage generate-agents
+
+# Use built-in personas for common roles
+$ gptengage debate "Is this secure?" -p security-expert -r 3
+
+# Create custom personas for your domain
+# Edit ~/.config/gptengage/agents/your-persona.yaml
+
+# Combine personas with multi-instance for deep expertise
+$ gptengage debate "Review this authentication flow" \
+  -p security-expert \
+  --agent claude \
+  --instances 3 \
+  -r 4
 ```
 
 ### Session Organization
@@ -594,9 +818,251 @@ $ gptengage invoke claude "Format for executive review" --session proposal
 Capture the reasoning behind a decision:
 
 ```bash
-$ gptengage debate "Option A vs Option B" --output markdown > decision.md
+$ gptengage debate "Option A vs Option B" -o markdown > decision.md
 $ gptengage invoke claude "Why is this the right choice?" --session decision
 $ gptengage session show decision >> decision.md
+```
+
+---
+
+## For AI Agents
+
+This section provides patterns for AI agents and automated systems that integrate with gptengage.
+
+### Parsing JSON Output
+
+Use jq to extract specific data from debate results:
+
+```bash
+# Run debate and capture JSON output
+$ gptengage debate "Best approach for error handling" \
+  --agent claude \
+  --instances 3 \
+  -o json > result.json
+
+# Extract the consensus summary
+$ jq -r '.consensus.summary' result.json
+
+# Get all arguments from round 1
+$ jq '.rounds[0].arguments[]' result.json
+
+# Extract just the conclusions
+$ jq -r '.rounds[].conclusions[]' result.json
+
+# Get participant count
+$ jq '.participants | length' result.json
+
+# Filter for arguments containing a specific keyword
+$ jq -r '.rounds[].arguments[] | select(. | contains("performance"))' result.json
+
+# Create a summary object
+$ jq '{
+  topic: .topic,
+  rounds: (.rounds | length),
+  consensus: .consensus.summary,
+  participants: [.participants[].name]
+}' result.json
+```
+
+### Error Handling with Exit Codes
+
+Handle gptengage exit codes in scripts:
+
+```bash
+#!/bin/bash
+# error-handling.sh - Robust error handling for gptengage
+
+set -e
+
+run_debate() {
+    local topic="$1"
+    local output_file="$2"
+
+    if gptengage debate "$topic" -o json > "$output_file" 2>&1; then
+        echo "Debate completed successfully"
+        return 0
+    else
+        local exit_code=$?
+        case $exit_code in
+            1)
+                echo "Error: Invalid arguments or configuration"
+                ;;
+            2)
+                echo "Error: AI CLI not available"
+                ;;
+            3)
+                echo "Error: Timeout during debate"
+                ;;
+            *)
+                echo "Error: Unknown error (code: $exit_code)"
+                ;;
+        esac
+        return $exit_code
+    fi
+}
+
+# Usage
+run_debate "Should we use containers?" "debate-result.json"
+```
+
+### Automated Debate Workflow
+
+Complete bash script for automated debate workflows:
+
+```bash
+#!/bin/bash
+# automated-debate.sh - Run debates and process results automatically
+
+set -euo pipefail
+
+# Configuration
+DEBATE_TOPIC="${1:-"Best practices for API design"}"
+OUTPUT_DIR="${2:-./debate-results}"
+ROUNDS="${3:-3}"
+INSTANCES="${4:-3}"
+
+# Create output directory
+mkdir -p "$OUTPUT_DIR"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+OUTPUT_FILE="$OUTPUT_DIR/debate_$TIMESTAMP.json"
+SUMMARY_FILE="$OUTPUT_DIR/summary_$TIMESTAMP.md"
+
+echo "Starting automated debate workflow..."
+echo "Topic: $DEBATE_TOPIC"
+echo "Output: $OUTPUT_FILE"
+
+# Check that required tools are available
+if ! command -v gptengage &> /dev/null; then
+    echo "Error: gptengage not found in PATH"
+    exit 1
+fi
+
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq not found (required for JSON parsing)"
+    exit 1
+fi
+
+# Check AI CLI availability
+if ! gptengage status &> /dev/null; then
+    echo "Warning: Some AI CLIs may not be available"
+fi
+
+# Run the debate
+echo "Running debate with $INSTANCES instances for $ROUNDS rounds..."
+if ! gptengage debate "$DEBATE_TOPIC" \
+    --agent claude \
+    --instances "$INSTANCES" \
+    -r "$ROUNDS" \
+    -t 120 \
+    -o json > "$OUTPUT_FILE" 2>&1; then
+    echo "Debate failed. Check $OUTPUT_FILE for details."
+    exit 1
+fi
+
+# Validate JSON output
+if ! jq empty "$OUTPUT_FILE" 2>/dev/null; then
+    echo "Error: Invalid JSON output"
+    exit 1
+fi
+
+# Generate summary
+echo "Generating summary..."
+{
+    echo "# Debate Summary"
+    echo ""
+    echo "**Topic:** $DEBATE_TOPIC"
+    echo "**Date:** $(date)"
+    echo "**Rounds:** $ROUNDS"
+    echo "**Instances:** $INSTANCES"
+    echo ""
+    echo "## Consensus"
+    echo ""
+    jq -r '.consensus.summary // "No consensus reached"' "$OUTPUT_FILE"
+    echo ""
+    echo "## Key Points"
+    echo ""
+    jq -r '.rounds[-1].arguments[] | "- " + .' "$OUTPUT_FILE" 2>/dev/null || echo "- No key points extracted"
+} > "$SUMMARY_FILE"
+
+echo "Workflow complete!"
+echo "Full results: $OUTPUT_FILE"
+echo "Summary: $SUMMARY_FILE"
+
+# Return success
+exit 0
+```
+
+### Chaining Debates
+
+Chain multiple debates for complex decision-making:
+
+```bash
+#!/bin/bash
+# chain-debates.sh - Chain multiple related debates
+
+# Phase 1: High-level decision
+gptengage debate "Monolith or Microservices?" \
+  --agent claude --instances 3 \
+  -r 2 -o json > phase1.json
+
+PHASE1_RESULT=$(jq -r '.consensus.summary' phase1.json)
+
+# Phase 2: Follow-up based on Phase 1 result
+gptengage debate "Given: $PHASE1_RESULT - What communication pattern?" \
+  --agent claude --instances 3 \
+  -r 2 -o json > phase2.json
+
+# Phase 3: Implementation details
+PHASE2_RESULT=$(jq -r '.consensus.summary' phase2.json)
+gptengage debate "Implement $PHASE2_RESULT with which framework?" \
+  --agent claude --instances 3 \
+  -r 2 -o json > phase3.json
+
+# Combine results
+jq -s '{
+  phase1: .[0].consensus,
+  phase2: .[1].consensus,
+  phase3: .[2].consensus
+}' phase1.json phase2.json phase3.json > final-decision.json
+
+echo "Decision chain complete. See final-decision.json"
+```
+
+### Integrating with CI/CD
+
+Use gptengage in CI/CD pipelines:
+
+```yaml
+# .github/workflows/architecture-review.yml
+name: Architecture Review
+
+on:
+  pull_request:
+    paths:
+      - 'src/architecture/**'
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install gptengage
+        run: cargo install gptengage
+
+      - name: Run architecture debate
+        run: |
+          gptengage debate "Review these architecture changes" \
+            --context-file src/architecture/design.md \
+            --agent claude \
+            --instances 2 \
+            -r 2 \
+            -o json > review.json
+
+      - name: Extract recommendations
+        run: |
+          echo "## Architecture Review" >> $GITHUB_STEP_SUMMARY
+          jq -r '.consensus.summary' review.json >> $GITHUB_STEP_SUMMARY
 ```
 
 ---
@@ -605,15 +1071,15 @@ $ gptengage session show decision >> decision.md
 
 ```bash
 # For faster debates, reduce timeout
-$ gptengage debate "Quick topic" --rounds 1 --timeout 30
+$ gptengage debate "Quick topic" -r 1 -t 30
 
 # For complex analyses, increase timeout
-$ gptengage invoke claude "Complex analysis" --timeout 180
+$ gptengage invoke claude "Complex analysis" -t 180
 
 # Check available CLIs before starting long tasks
 $ gptengage status
 
 # Reuse sessions for related questions to save thinking time
-$ gptengage invoke claude "First question" --session my-analysis
-$ gptengage invoke claude "Related follow-up" --session my-analysis
+$ gptengage invoke claude "First question" -s my-analysis
+$ gptengage invoke claude "Related follow-up" -s my-analysis
 ```

@@ -15,6 +15,19 @@ A unified CLI orchestrator for multiple LLM tools. Run debates between AI system
 - **Flexible Output Formats**: Text, JSON, or Markdown output for debates
 - **CLI Agnostic**: Extensible architecture supports any CLI-based LLM tool
 
+## Quick Reference
+
+| Task | Command |
+|------|---------|
+| Check status | `gptengage status` |
+| Single invocation | `gptengage invoke <cli> "prompt"` |
+| With session | `gptengage invoke <cli> "prompt" --session name` |
+| Cross-AI debate | `gptengage debate "topic"` |
+| Multi-instance debate | `gptengage debate "topic" --agent claude` |
+| Persona debate | `gptengage debate "topic" -p "claude:CEO,codex:CTO"` |
+| Agent-file debate | `gptengage debate "topic" --agent-file agents.json` |
+| Generate agents | `gptengage generate-agents --topic "..." --roles "..." -o file.json` |
+
 ## For AI Agents (Programmatic Use)
 
 If you are an AI agent using gptengage, you have multiple debate options:
@@ -59,6 +72,8 @@ gptengage debate "Your debate topic" --agent-file agents.json
 - `expertise`: array of strings (optional)
 - `communication_style`: string (optional)
 
+> **Important:** The `instructions` field must be at least 10 characters. This ensures meaningful behavioral guidance for each participant. Instructions like "Be brief" (8 chars) will fail validation. Use descriptive instructions like "Focus on technical accuracy and provide concrete examples." (55 chars).
+
 **Example agent file:**
 
 ```json
@@ -77,13 +92,47 @@ gptengage debate "Your debate topic" --agent-file agents.json
 }
 ```
 
-### 3. Parse Output
+### Option 3: Parse Output
 
 Use `--output json` for machine-readable output:
 
 ```bash
 gptengage debate "topic" --agent-file agents.json --output json > result.json
 ```
+
+### Agent Integration Contract
+
+This section defines the stable interface contract for programmatic integration.
+
+#### Input Contract (Agent Definition File)
+
+| Field | Type | Required | Validation | Description |
+|-------|------|----------|------------|-------------|
+| `schema_version` | string | Yes | Must be `"1.0"` | Schema version for forward compatibility |
+| `generated_by` | string | No | Non-empty if present | Identifier of generating agent |
+| `participants` | array | Yes | Min 1 element | Array of participant definitions |
+| `participants[].cli` | string | Yes | `claude`, `codex`, or `gemini` | Target CLI for this participant |
+| `participants[].persona` | string | Yes | Non-empty | Role name (e.g., "CEO", "Architect") |
+| `participants[].instructions` | string | Yes | Min 10 characters | Behavioral instructions for the participant |
+| `participants[].expertise` | array | No | Array of strings | Areas of expertise (3-5 recommended) |
+| `participants[].communication_style` | string | No | Non-empty if present | Communication style descriptor |
+
+#### Output Contract (`--output json`)
+
+| Field | Type | Always Present | Description |
+|-------|------|----------------|-------------|
+| `topic` | string | Yes | The debate topic |
+| `rounds` | number | Yes | Number of rounds completed |
+| `participants` | array | Yes | List of participant identifiers |
+| `responses` | array | Yes | Array of round response objects |
+| `responses[].round` | number | Yes | Round number (1-indexed) |
+| `responses[].participant` | string | Yes | Participant identifier |
+| `responses[].content` | string | Yes | Response content |
+| `responses[].timestamp` | string | Yes | ISO 8601 timestamp |
+| `metadata.duration_ms` | number | Yes | Total execution time |
+| `metadata.schema_version` | string | Yes | Output schema version |
+
+> **Note:** The schema version follows semantic versioning. Breaking changes will increment the major version. Minor additions (new optional fields) increment the minor version. The current stable version is `1.0`.
 
 ## Installation
 
@@ -489,6 +538,34 @@ Config: ~/.gptengage/config.json
 Sessions: ~/.gptengage/sessions/
 ```
 
+## Exit Codes
+
+GPT Engage uses standardized exit codes for scripting and automation:
+
+| Exit Code | Meaning | Example Scenario |
+|-----------|---------|------------------|
+| 0 | Success | Command completed successfully |
+| 1 | CLI not found or invocation failed | Specified CLI not installed or returned error |
+| 2 | Session error or invalid format | Invalid session name, corrupted session file, or malformed JSON |
+| 3 | File not found | Agent file, context file, or config file does not exist |
+| 4 | Timeout exceeded | CLI did not respond within the specified timeout |
+
+**Example usage in scripts:**
+
+```bash
+gptengage invoke claude "test prompt" --timeout 60
+exit_code=$?
+
+case $exit_code in
+  0) echo "Success" ;;
+  1) echo "CLI error - check installation" ;;
+  2) echo "Session/format error" ;;
+  3) echo "File not found" ;;
+  4) echo "Timeout - increase --timeout value" ;;
+  *) echo "Unknown error: $exit_code" ;;
+esac
+```
+
 ## How Sessions Work
 
 GPT Engage maintains conversation history without modifying the underlying CLIs. When you continue a session, the full conversation history is injected into the prompt:
@@ -521,6 +598,8 @@ GPT Engage stores all data in `~/.gptengage/`:
 │   └── ...
 └── logs/                        # Optional debug logs
 ```
+
+> **Warning:** Session files are stored unencrypted on disk. Do not include sensitive information (passwords, API keys, PII) in session prompts or responses. Consider using `gptengage session end --all` after working with sensitive topics.
 
 Session files are simple JSON:
 
@@ -571,7 +650,8 @@ Session files are simple JSON:
 
 - Requires Google Gemini CLI to be installed and authenticated
 - `--yolo` = auto-approve all operations
-- **Note:** Typically requires longer timeouts (60+ seconds)
+
+> **Note:** Gemini CLI typically requires longer timeouts (60-120 seconds) compared to Claude or Codex. For debates, consider using `--timeout 120` or higher. The default 120-second timeout is usually sufficient, but complex prompts may need more time.
 
 ## Troubleshooting
 
