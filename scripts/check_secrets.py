@@ -13,6 +13,14 @@ import sys
 from pathlib import Path
 from typing import List, Set
 
+try:
+    import tomllib as toml
+except ModuleNotFoundError:  # pragma: no cover - fallback for older Python
+    try:
+        import tomli as toml  # type: ignore
+    except ModuleNotFoundError:  # pragma: no cover - best-effort
+        toml = None
+
 # File extensions to scan (Rust project focus)
 SCANNED_EXTENSIONS = {
     ".rs",      # Rust source
@@ -79,21 +87,25 @@ def should_scan_file(file_path: Path) -> bool:
     return True
 
 def load_allowlist(repo_root: Path) -> Set[str]:
-    """Load allowlist of permitted secrets from allow.json"""
-    allowlist_file = repo_root / "allow.json"
+    """Load allowlist of permitted secrets from allow.toml or allow.example.toml"""
+    allowlist_file = repo_root / "allow.toml"
     if not allowlist_file.exists():
-        return set()
+        allowlist_file = repo_root / "allow.example.toml"
+        if not allowlist_file.exists():
+            return set()
 
     try:
-        with open(allowlist_file) as f:
-            data = json.load(f)
+        if toml is None:
+            return set()
+        with open(allowlist_file, "rb") as f:
+            data = toml.load(f)
             # Extract all hashes from allowlist
             hashes = set()
             for entry in data.get("allowlist", []):
                 if "hash" in entry:
                     hashes.add(entry["hash"])
             return hashes
-    except (json.JSONDecodeError, IOError):
+    except (OSError, ValueError):
         return set()
 
 def run_trufflehog(files: List[Path], repo_root: Path) -> bool:
@@ -166,7 +178,7 @@ def run_trufflehog(files: List[Path], repo_root: Path) -> bool:
             print("To fix:", file=sys.stderr)
             print("  1. Remove the secrets from your code", file=sys.stderr)
             print("  2. Use environment variables or secure vaults instead", file=sys.stderr)
-            print("  3. If this is a false positive, add to allow.json", file=sys.stderr)
+            print("  3. If this is a false positive, add to allow.example.toml", file=sys.stderr)
             print("\nTo bypass (NOT recommended):", file=sys.stderr)
             print("  git commit --no-verify", file=sys.stderr)
             return False
