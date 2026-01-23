@@ -587,6 +587,16 @@ fn test_extract_json_array() {
 
 ## Common Development Tasks
 
+## Local Security Checks (Pre-push)
+
+This repo includes a `pre-push` hook that runs security checks before pushing:
+
+- TruffleHog secret scan
+- `cargo audit`
+- `cargo deny check`
+
+If a tool is missing, the hook prints a warning and skips that check. Install the tools to enforce the checks locally.
+
 ### Adding a New CLI
 
 To support a new LLM CLI (e.g., Llama):
