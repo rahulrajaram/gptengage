@@ -11,6 +11,9 @@ use clap::{Parser, Subcommand};
 gptengage enables orchestration of multiple AI CLI tools (Claude Code, Codex, Gemini)
 for debates, code reviews, and interactive sessions.
 
+DEFAULT TIMEOUT:
+    120 seconds per CLI invocation. Override with --timeout or config defaultTimeout.
+
 QUICK START:
     gptengage status                    Check available CLIs
     gptengage invoke claude \"Hello\"     Simple invocation
