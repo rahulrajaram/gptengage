@@ -19,7 +19,7 @@ Be respectful, inclusive, and constructive in all interactions with other contri
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/gptengage.git
+git clone https://github.com/rahulrajaram/gptengage.git
 cd gptengage
 
 # Build in debug mode
@@ -87,7 +87,7 @@ gptengage/
 Found a bug? Help us fix it!
 
 **Before reporting:**
-- Check [existing issues](https://github.com/yourusername/gptengage/issues)
+- Check [existing issues](https://github.com/rahulrajaram/gptengage/issues)
 - Verify you're using the latest version
 - Try reproducing with a minimal example
 

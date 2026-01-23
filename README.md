@@ -139,7 +139,7 @@ This section defines the stable interface contract for programmatic integration.
 ### Quick Install (Recommended)
 
 ```bash
-git clone https://github.com/yourusername/gptengage
+git clone https://github.com/rahulrajaram/gptengage
 cd gptengage
 ./install.sh
 ```
@@ -759,7 +759,7 @@ You can modify timeouts or add custom CLIs by editing this file.
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/gptengage
+git clone https://github.com/rahulrajaram/gptengage
 cd gptengage
 
 # Build in release mode
@@ -820,9 +820,9 @@ MIT License - see LICENSE file for details
 
 ## Support
 
-- **Issues**: Report bugs at [GitHub Issues](https://github.com/yourusername/gptengage/issues)
+- **Issues**: Report bugs at [GitHub Issues](https://github.com/rahulrajaram/gptengage/issues)
 - **Documentation**: Full docs in [docs/](docs/) directory
-- **Examples**: See [examples.md](examples.md) for more use cases
+- **Examples**: See [docs/EXAMPLES.md](docs/EXAMPLES.md) for more use cases
 
 ## Roadmap
 
