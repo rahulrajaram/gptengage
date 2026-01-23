@@ -6,6 +6,7 @@ Complete reference documentation for all GPT Engage commands.
 
 - [gptengage invoke](#gptengage-invoke) - Invoke a specific LLM CLI
 - [gptengage debate](#gptengage-debate) - Run multi-AI debates
+- [gptengage generate-agents](#gptengage-generate-agents) - Generate agent definitions for debates
 - [Structured Output Specification](#structured-output-specification) - JSON and Markdown output schemas
 - [gptengage session](#gptengage-session) - Manage conversation sessions
 - [gptengage status](#gptengage-status) - Show available CLIs and sessions
@@ -341,8 +342,6 @@ $ gptengage debate "New tool or existing tool?" --rounds 1
 - **Round context**: Each round includes previous responses, so CLIs can respond to each other's points
 - **Output format**: Default `text` is human-readable; use `json` for programmatic access or `markdown` for documentation
 
-> **Warning**: If all CLIs timeout or fail in a round, the debate continues to the next round. Check the `error` field in JSON output to detect partial failures.
-
 > **Note**: Timeout applies per-CLI per-round. A 3-round debate with 120s timeout could take up to 360 seconds total if CLIs respond slowly.
 
 ### Timeout Behavior
@@ -350,8 +349,8 @@ $ gptengage debate "New tool or existing tool?" --rounds 1
 When a CLI exceeds its timeout:
 
 1. **Process termination**: The CLI process is sent SIGTERM, followed by SIGKILL after 5 seconds if unresponsive
-2. **Partial output handling**: Any output received before timeout is discarded; the CLI entry shows an error
-3. **Error reporting**: Timeout errors are written to stderr and included in the JSON `error` field
+2. **Partial output handling**: Any output received before timeout is discarded
+3. **Error reporting**: Timeout errors are written to stderr
 4. **Continuation**: The debate continues with remaining CLIs and proceeds to the next round
 
 > **Important**: Timeouts do not cause immediate command failure. The debate completes with available responses.
@@ -361,6 +360,58 @@ When a CLI exceeds its timeout:
 - [gptengage invoke](#gptengage-invoke) - For single-CLI interactions
 - [gptengage config](#gptengage-config) - To set `defaultDebateRounds` and `defaultTimeout`
 - [gptengage status](#gptengage-status) - To verify which CLIs are available
+
+---
+
+## gptengage generate-agents
+
+Generate structured agent definitions for debates. This uses an LLM CLI to produce a validated JSON file you can pass to `gptengage debate --agent-file`.
+
+### Syntax
+
+```bash
+gptengage generate-agents --topic <TOPIC> --roles <ROLES> --output <FILE> [OPTIONS]
+```
+
+### Required Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `--topic <TOPIC>` | Debate topic to seed agent generation |
+| `--roles <ROLES>` | Comma-separated list of roles (e.g., `CEO,Architect,PM`) |
+| `--output <FILE>` | Output path for the JSON file |
+
+### Options
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--use-cli <CLI>` | CLI to use: `claude`, `codex`, or `gemini` | claude |
+| `--timeout <SECONDS>` | Timeout in seconds | 120 |
+| `--write` | Allow write access within the current directory | false |
+| `--help` | Show help for this command | - |
+
+### Examples
+
+```bash
+# Generate 3 agents for a microservices debate
+gptengage generate-agents \
+  --topic "Should we migrate to microservices?" \
+  --roles "CEO,Principal Architect,Product Manager" \
+  --output agents.json
+
+# Use Codex for generation
+gptengage generate-agents \
+  --topic "API design strategy" \
+  --roles "Backend Lead,Frontend Lead,DBA" \
+  --output api-agents.json \
+  --use-cli codex
+```
+
+### Notes
+
+- Output is a JSON file with schema version `1.0`.
+- Each agent includes `cli`, `persona`, `instructions`, `expertise`, and `communication_style`.
+- Validation enforces required fields and minimum instruction length.
 
 ---
 
@@ -379,6 +430,10 @@ The JSON output conforms to the following schema. All fields are guaranteed pres
   "type": "object",
   "required": ["topic", "rounds"],
   "properties": {
+    "gptengage_version": {
+      "type": "string",
+      "description": "Optional. Version string of gptengage"
+    },
     "topic": {
       "type": "string",
       "description": "The debate topic as provided by the user"
@@ -391,24 +446,19 @@ The JSON output conforms to the following schema. All fields are guaranteed pres
         "description": "Array of CLI responses for this round",
         "items": {
           "type": "object",
-          "required": ["cli", "response"],
+          "required": ["cli", "response", "persona"],
           "properties": {
             "cli": {
               "type": "string",
-              "enum": ["Claude", "Codex", "Gemini"],
-              "description": "Display name of the responding CLI"
+              "description": "CLI identifier (e.g., claude, codex, gemini)"
             },
             "response": {
               "type": "string",
-              "description": "The CLI's response text. Empty string if error occurred."
+              "description": "The CLI's response text"
             },
             "persona": {
-              "type": "string",
-              "description": "Optional. The persona/role assigned to this CLI for the debate."
-            },
-            "error": {
-              "type": "string",
-              "description": "Optional. Error message if CLI failed or timed out. Absent on success."
+              "type": ["string", "null"],
+              "description": "Persona/role assigned to this CLI for the debate, or null if none"
             }
           }
         }
@@ -422,33 +472,40 @@ The JSON output conforms to the following schema. All fields are guaranteed pres
 
 ```json
 {
+  "gptengage_version": "1.0.0",
   "topic": "Should we use Rust instead of C?",
   "rounds": [
     [
       {
-        "cli": "Claude",
+        "cli": "claude",
+        "persona": null,
         "response": "Rust offers memory safety guarantees through its ownership system..."
       },
       {
-        "cli": "Codex",
+        "cli": "codex",
+        "persona": null,
         "response": "C provides decades of optimization and universal platform support..."
       },
       {
-        "cli": "Gemini",
+        "cli": "gemini",
+        "persona": null,
         "response": "The choice depends heavily on your project constraints..."
       }
     ],
     [
       {
-        "cli": "Claude",
+        "cli": "claude",
+        "persona": null,
         "response": "Responding to Codex's point about platform support..."
       },
       {
-        "cli": "Codex",
+        "cli": "codex",
+        "persona": null,
         "response": "While memory safety is valuable, C developers can use static analyzers..."
       },
       {
-        "cli": "Gemini",
+        "cli": "gemini",
+        "persona": null,
         "response": "Both previous responses highlight valid tradeoffs..."
       }
     ]
@@ -456,7 +513,7 @@ The JSON output conforms to the following schema. All fields are guaranteed pres
 }
 ```
 
-#### Example: Debate with Errors
+#### Example: Debate with Timeouts (Missing Responses)
 
 ```json
 {
@@ -464,16 +521,13 @@ The JSON output conforms to the following schema. All fields are guaranteed pres
   "rounds": [
     [
       {
-        "cli": "Claude",
+        "cli": "claude",
+        "persona": null,
         "response": "AI safety encompasses several key concerns..."
       },
       {
-        "cli": "Codex",
-        "response": "",
-        "error": "Timeout: CLI did not respond within 120 seconds"
-      },
-      {
-        "cli": "Gemini",
+        "cli": "gemini",
+        "persona": null,
         "response": "From a technical perspective, AI alignment..."
       }
     ]
@@ -489,12 +543,12 @@ The JSON output conforms to the following schema. All fields are guaranteed pres
   "rounds": [
     [
       {
-        "cli": "Claude",
+        "cli": "claude",
         "persona": "Senior Architect",
         "response": "As a senior architect, I recommend evaluating team size first..."
       },
       {
-        "cli": "Codex",
+        "cli": "codex",
         "persona": "DevOps Engineer",
         "response": "From an operations standpoint, microservices require robust CI/CD..."
       }
@@ -531,10 +585,8 @@ The markdown output follows a consistent structure suitable for documentation an
 |---------|--------|-------------|
 | Document title | `# {topic}` | H1 heading with the debate topic |
 | Round headers | `## Round {n}` | H2 heading, 1-indexed round number |
-| CLI headers | `### {CLI Name}` | H3 heading with CLI display name (Claude, Codex, Gemini) |
+| CLI headers | `### {CLI Name}` | H3 heading with CLI name or `cli (persona)` |
 | Response body | Plain text | CLI response with original formatting preserved |
-| Error indication | `*Error: {message}*` | Italicized error message in place of response |
-| Persona indicator | `**Persona: {name}**` | Bold persona name before response, if assigned |
 
 #### Complete Markdown Example
 
@@ -543,29 +595,29 @@ The markdown output follows a consistent structure suitable for documentation an
 
 ## Round 1
 
-### Claude
+### claude
 
 Rust offers memory safety guarantees through its ownership system, preventing common bugs like null pointer dereferences and buffer overflows at compile time.
 
-### Codex
+### codex
 
 C provides decades of optimization and universal platform support. Its simplicity makes it ideal for embedded systems and OS kernels.
 
-### Gemini
+### gemini
 
 The choice depends heavily on your project constraints. New projects may benefit from Rust's safety, while existing C codebases have maintenance considerations.
 
 ## Round 2
 
-### Claude
+### claude
 
 Responding to Codex's point about platform support: Rust now targets most platforms C does, including embedded systems via `no_std`.
 
-### Codex
+### codex
 
 While memory safety is valuable, C developers can use static analyzers and sanitizers to catch many of the same issues Rust prevents.
 
-### Gemini
+### gemini
 
 Both previous responses highlight valid tradeoffs. Consider team expertise and long-term maintenance costs in your decision.
 ```
@@ -578,11 +630,10 @@ Both previous responses highlight valid tradeoffs. Consider team expertise and l
 - Field names and types remaining consistent
 - Required fields always being present
 - The structure of nested arrays (rounds containing CLI responses)
-- Error information being present in the `error` field when failures occur
 
 **May change without notice:**
 - Addition of new optional fields
-- Formatting of error messages
+- The presence or absence of responses when a CLI times out or is unavailable
 - Whitespace in markdown output
 
 ---

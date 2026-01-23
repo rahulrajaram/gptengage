@@ -119,20 +119,44 @@ This section defines the stable interface contract for programmatic integration.
 
 #### Output Contract (`--output json`)
 
+The JSON output is a single object with the following fields:
+
 | Field | Type | Always Present | Description |
 |-------|------|----------------|-------------|
+| `gptengage_version` | string | No | Version string (omitted if not set) |
 | `topic` | string | Yes | The debate topic |
-| `rounds` | number | Yes | Number of rounds completed |
-| `participants` | array | Yes | List of participant identifiers |
-| `responses` | array | Yes | Array of round response objects |
-| `responses[].round` | number | Yes | Round number (1-indexed) |
-| `responses[].participant` | string | Yes | Participant identifier |
-| `responses[].content` | string | Yes | Response content |
-| `responses[].timestamp` | string | Yes | ISO 8601 timestamp |
-| `metadata.duration_ms` | number | Yes | Total execution time |
-| `metadata.schema_version` | string | Yes | Output schema version |
+| `rounds` | array | Yes | Array of rounds, each round is an array of response objects |
 
-> **Note:** The schema version follows semantic versioning. Breaking changes will increment the major version. Minor additions (new optional fields) increment the minor version. The current stable version is `1.0`.
+Each response object in `rounds` contains:
+
+| Field | Type | Always Present | Description |
+|-------|------|----------------|-------------|
+| `cli` | string | Yes | CLI identifier (e.g., `claude`, `codex`, `gemini`) |
+| `response` | string | Yes | Response content |
+| `persona` | string or null | Yes | Persona name if provided; `null` otherwise |
+
+Example output:
+
+```json
+{
+  "gptengage_version": "1.0.0",
+  "topic": "Should we use Rust instead of C?",
+  "rounds": [
+    [
+      {
+        "cli": "claude",
+        "persona": null,
+        "response": "Rust offers memory safety guarantees..."
+      },
+      {
+        "cli": "codex",
+        "persona": null,
+        "response": "C provides low-level control and portability..."
+      }
+    ]
+  ]
+}
+```
 
 ## Installation
 
@@ -274,6 +298,7 @@ Options:
   --topic <DESC>         Set the session topic (auto-generated if omitted)
   --context-file <PATH>  Include file contents in the prompt
   --timeout <SECONDS>    Command timeout (default: 120)
+  --write                Allow write access within the current directory (default: read-only)
 ```
 
 **Examples:**
@@ -342,6 +367,7 @@ Options:
       --rounds <N>                   Number of rounds (default: 3)
       --output <FORMAT>              Output format: text, json, markdown (default: text)
       --timeout <SECONDS>            Timeout per CLI per round (default: 120)
+      --write                        Allow write access within the current directory (default: read-only)
 ```
 
 #### Simple Debate (Cross-AI, No Personas)
@@ -456,6 +482,7 @@ Required:
 Options:
   --use-cli <CLI>   CLI to use for generation: claude, codex, gemini (default: claude)
   --timeout <SECS>  Timeout in seconds (default: 120)
+  --write           Allow write access within the current directory (default: read-only)
 ```
 
 **Examples:**
@@ -746,6 +773,7 @@ You can modify timeouts or add custom CLIs by editing this file.
 - **Local Storage Only**: All sessions are stored locally in `~/.gptengage/`—nothing is sent to external servers
 - **Subprocess Isolation**: Each CLI invocation is a fresh process with no state leakage
 - **Prompt Visibility**: Session prompts include full conversation history—be mindful of sensitive information
+- **Read-Only by Default**: Use `--write` to opt into write access within the current directory
 
 ## Performance Tips
 

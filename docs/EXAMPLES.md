@@ -45,6 +45,16 @@ $ gptengage invoke gemini "Suggest clarity improvements" \
 $ gptengage session show code-review
 ```
 
+### Scenario: Apply a Fix (Write Mode)
+
+Opt in to write access when you want the CLI to make edits in the current directory:
+
+```bash
+$ gptengage invoke codex "Fix the lint errors in this file" \
+  --context-file src/auth.rs \
+  --write
+```
+
 ### Scenario: Iterative Bug Fix
 
 Work through a bug fix with Claude, maintaining full context:
