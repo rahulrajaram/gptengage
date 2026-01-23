@@ -1,6 +1,6 @@
 //! Invoke command - Invoke a specific CLI with optional session support
 
-use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+use crate::invokers::{AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
 use crate::session::SessionManager;
 
 /// Invoke a specific CLI with a prompt
@@ -11,6 +11,7 @@ pub async fn run_invoke(
     topic: Option<String>,
     context_file: Option<String>,
     timeout: u64,
+    access_mode: AccessMode,
 ) -> anyhow::Result<()> {
     // Load context from file if provided
     if let Some(file) = context_file {
@@ -56,7 +57,7 @@ pub async fn run_invoke(
                     "Claude Code CLI not found in PATH. Install from: https://claude.ai/code"
                 ));
             }
-            invoker.invoke(&full_prompt, timeout).await?
+            invoker.invoke(&full_prompt, timeout, access_mode).await?
         }
         "codex" => {
             let invoker = CodexInvoker::new();
@@ -65,14 +66,14 @@ pub async fn run_invoke(
                     "Codex CLI not found in PATH. Install from: https://github.com/openai/codex"
                 ));
             }
-            invoker.invoke(&full_prompt, timeout).await?
+            invoker.invoke(&full_prompt, timeout, access_mode).await?
         }
         "gemini" => {
             let invoker = GeminiInvoker::new();
             if !invoker.is_available() {
                 return Err(anyhow::anyhow!("Gemini CLI not found in PATH. Install from: https://ai.google.dev/gemini-api/docs/cli"));
             }
-            invoker.invoke(&full_prompt, timeout).await?
+            invoker.invoke(&full_prompt, timeout, access_mode).await?
         }
         _ => {
             return Err(anyhow::anyhow!(

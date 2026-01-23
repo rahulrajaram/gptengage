@@ -56,7 +56,7 @@
                   │            │
        ┌──────────▼──┐ ┌───────▼─────┐ ┌───────────┐
        │ claude -p   │ │codex        │ │gemini     │
-       │<prompt>     │ │exec ...     │ │--yolo     │
+       │<prompt>     │ │exec --sandbox│ │--sandbox │
        └──────────┬──┘ └──────┬──────┘ └┬──────────┘
                   │           │         │
               [Subprocess Execution with stdin/stdout piping]
@@ -249,19 +249,19 @@ pub trait Invoker {
 ```
 
 **Claude Code Invoker**:
-- Command: `claude -p`
-- Flag: `-p` enables print mode (non-interactive)
+- Command: `claude -p --tools Read --allowed-tools Read`
+- Flags: `-p` (print mode), `--tools Read` (read-only tools), `--allowed-tools Read` (no prompt for read)
 - Passes prompt via stdin
 
 **Codex Invoker**:
-- Command: `codex exec --full-auto`
-- Flags: `exec` (execute mode), `--full-auto` (auto-approve)
+- Command: `codex exec --sandbox read-only --cd .`
+- Flags: `exec` (execute mode), `--sandbox read-only` (read-only execution), `--cd .` (current directory workspace)
 - Passes prompt via stdin
 - Note: Requires git repo trust or `--skip-git-repo-check`
 
 **Gemini Invoker**:
-- Command: `gemini --yolo`
-- Flag: `--yolo` (auto-approve all operations)
+- Command: `gemini --sandbox --include-directories .`
+- Flags: `--sandbox` (sandboxed mode with approval prompts), `--include-directories .` (current directory workspace)
 - Passes prompt via stdin
 - Note: Typically slower, recommend 60+ second timeout
 
@@ -393,17 +393,17 @@ User configuration management.
   "clis": {
     "claude": {
       "command": "claude",
-      "invokeArgs": ["-p"],
+      "invokeArgs": ["-p", "--tools", "Read", "--allowed-tools", "Read"],
       "detected": true
     },
     "codex": {
       "command": "codex",
-      "invokeArgs": ["exec", "--full-auto"],
+      "invokeArgs": ["exec", "--sandbox", "read-only", "--cd", "."],
       "detected": true
     },
     "gemini": {
       "command": "gemini",
-      "invokeArgs": ["--yolo"],
+      "invokeArgs": ["--sandbox", "--include-directories", "."],
       "detected": false
     }
   }
@@ -534,9 +534,9 @@ User: gptengage debate "Rust vs Go" --rounds 1
 │  │
 │  ├─ Task 1 (Claude):     claude -p "[context]" → "Rust offers memory safety..."
 │  │
-│  ├─ Task 2 (Codex):      codex exec --full-auto "[context]" → "Go is simpler and..."
+│  ├─ Task 2 (Codex):      codex exec --sandbox read-only --cd . "[context]" → "Go is simpler and..."
 │  │
-│  └─ Task 3 (Gemini):     gemini --yolo "[context]" → "Both have trade-offs..."
+│  └─ Task 3 (Gemini):     gemini --sandbox --include-directories . "[context]" → "Both have trade-offs..."
 │
 ├─ Wait for all to complete (or timeout)
 │

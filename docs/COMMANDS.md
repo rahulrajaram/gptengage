@@ -38,6 +38,7 @@ gptengage invoke <CLI> <PROMPT> [OPTIONS]
 | `--topic <DESC>` | Set the session topic (auto-generated if omitted) | Auto-generated from prompt |
 | `--context-file <PATH>` | Include file contents in the prompt | (none) |
 | `--timeout <SECONDS>` | Command timeout in seconds | 120 |
+| `--write` | Allow write access within the current directory | false |
 | `--help` | Show help for this command | - |
 
 ### Examples
@@ -189,6 +190,7 @@ gptengage debate <TOPIC> [OPTIONS]
 | `--rounds <N>` | Number of debate rounds | 3 |
 | `--output <FORMAT>` | Output format: `text`, `json`, or `markdown` | text |
 | `--timeout <SECONDS>` | Timeout per CLI per round | 120 |
+| `--write` | Allow write access within the current directory | false |
 | `--help` | Show help for this command | - |
 
 ### Examples
@@ -798,17 +800,17 @@ CLI Configuration:
 
   claude:
     command    = claude
-    invokeArgs = ["-p"]
+    invokeArgs = ["-p", "--tools", "Read", "--allowed-tools", "Read"]
     detected   = true
 
   codex:
     command    = codex
-    invokeArgs = ["exec", "--full-auto"]
+    invokeArgs = ["exec", "--sandbox", "read-only", "--cd", "."]
     detected   = true
 
   gemini:
     command    = gemini
-    invokeArgs = ["--yolo"]
+    invokeArgs = ["--sandbox", "--include-directories", "."]
     detected   = false
 ```
 
@@ -826,7 +828,7 @@ $ gptengage config get clis.claude.command
 claude
 
 $ gptengage config get clis.codex.invokeArgs
-["exec", "--full-auto"]
+["exec", "--sandbox", "read-only", "--cd", "."]
 ```
 
 **Syntax:**
@@ -881,11 +883,11 @@ gptengage config set <KEY> <VALUE>
 | `defaultTimeout` | integer | 120 | Timeout in seconds for CLI invocations. Applied when `--timeout` is not specified. |
 | `defaultDebateRounds` | integer | 3 | Number of debate rounds. Applied when `--rounds` is not specified. |
 | `clis.claude.command` | string | `"claude"` | Command to invoke Claude CLI |
-| `clis.claude.invokeArgs` | array | `["-p"]` | Arguments for Claude (the `-p` flag enables print mode) |
+| `clis.claude.invokeArgs` | array | `["-p", "--tools", "Read", "--allowed-tools", "Read"]` | Arguments for Claude (print mode + read-only tools) |
 | `clis.codex.command` | string | `"codex"` | Command to invoke Codex CLI |
-| `clis.codex.invokeArgs` | array | `["exec", "--full-auto"]` | Arguments for Codex |
+| `clis.codex.invokeArgs` | array | `["exec", "--sandbox", "read-only", "--cd", "."]` | Arguments for Codex |
 | `clis.gemini.command` | string | `"gemini"` | Command to invoke Gemini CLI |
-| `clis.gemini.invokeArgs` | array | `["--yolo"]` | Arguments for Gemini |
+| `clis.gemini.invokeArgs` | array | `["--sandbox", "--include-directories", "."]` | Arguments for Gemini |
 
 ### Examples
 
@@ -926,11 +928,11 @@ $ gptengage status
 
 ```bash
 # Add verbose flag to Gemini
-$ gptengage config set clis.gemini.invokeArgs '["--yolo", "--verbose"]'
+$ gptengage config set clis.gemini.invokeArgs '["--sandbox", "--include-directories", ".", "--verbose"]'
 
 # Check the result
 $ gptengage config get clis.gemini.invokeArgs
-["--yolo", "--verbose"]
+["--sandbox", "--include-directories", ".", "--verbose"]
 ```
 
 ### Exit Codes
@@ -979,17 +981,17 @@ Modify behavior by editing `~/.gptengage/config.json`:
   "clis": {
     "claude": {
       "command": "claude",
-      "invokeArgs": ["-p"],
+      "invokeArgs": ["-p", "--tools", "Read", "--allowed-tools", "Read"],
       "detected": true
     },
     "codex": {
       "command": "codex",
-      "invokeArgs": ["exec", "--full-auto"],
+      "invokeArgs": ["exec", "--sandbox", "read-only", "--cd", "."],
       "detected": true
     },
     "gemini": {
       "command": "gemini",
-      "invokeArgs": ["--yolo"],
+      "invokeArgs": ["--sandbox", "--include-directories", "."],
       "detected": false
     }
   }

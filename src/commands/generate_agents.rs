@@ -1,6 +1,6 @@
 //! Generate agent definitions command
 
-use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+use crate::invokers::{AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
 use crate::orchestrator::{AgentDefinition, AgentFile};
 
 /// Generate agent definitions for debate participants
@@ -10,6 +10,7 @@ pub async fn run_generate_agents(
     output_path: String,
     use_cli: String,
     timeout: u64,
+    access_mode: AccessMode,
 ) -> anyhow::Result<()> {
     println!("Generating agent definitions...");
     println!("Topic: {}", topic);
@@ -46,7 +47,7 @@ pub async fn run_generate_agents(
     let prompt = build_generation_prompt(&topic, &role_list);
 
     println!("Using {} to generate agent definitions...", use_cli);
-    let response = invoker.invoke(&prompt, timeout).await?;
+    let response = invoker.invoke(&prompt, timeout, access_mode).await?;
 
     // Parse the response as JSON
     let agent_definitions = parse_agent_response(&response, &role_list)?;

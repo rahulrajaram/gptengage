@@ -137,6 +137,10 @@ pub enum Commands {
         /// Default: 120 seconds (2 minutes)
         #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
         timeout: u64,
+
+        /// Allow write access within the current directory (default: read-only)
+        #[arg(long, verbatim_doc_comment)]
+        write: bool,
     },
 
     /// Invoke a specific CLI with a prompt
@@ -191,6 +195,10 @@ pub enum Commands {
         /// Default: 120 seconds (2 minutes)
         #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
         timeout: u64,
+
+        /// Allow write access within the current directory (default: read-only)
+        #[arg(long, verbatim_doc_comment)]
+        write: bool,
     },
 
     /// Manage sessions
@@ -279,6 +287,10 @@ pub enum Commands {
         /// Default: 120 seconds (2 minutes)
         #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
         timeout: u64,
+
+        /// Allow write access within the current directory (default: read-only)
+        #[arg(long, verbatim_doc_comment)]
+        write: bool,
     },
 }
 
@@ -328,6 +340,7 @@ pub enum ConfigCommands {
 impl Cli {
     pub async fn execute(self) -> anyhow::Result<()> {
         use crate::commands::*;
+        use crate::invokers::AccessMode;
 
         match self.command {
             Commands::Debate {
@@ -339,6 +352,7 @@ impl Cli {
                 rounds,
                 output,
                 timeout,
+                write,
             } => {
                 debate::run_debate(debate::DebateOptions {
                     topic,
@@ -349,6 +363,7 @@ impl Cli {
                     rounds,
                     output,
                     timeout,
+                    access_mode: AccessMode::from_write_flag(write),
                 })
                 .await
             }
@@ -360,7 +375,19 @@ impl Cli {
                 topic,
                 context_file,
                 timeout,
-            } => invoke::run_invoke(cli, prompt, session, topic, context_file, timeout).await,
+                write,
+            } => {
+                invoke::run_invoke(
+                    cli,
+                    prompt,
+                    session,
+                    topic,
+                    context_file,
+                    timeout,
+                    AccessMode::from_write_flag(write),
+                )
+                .await
+            }
 
             Commands::Session(session_cmd) => match session_cmd {
                 SessionCommands::List => session::list_sessions().await,
@@ -400,7 +427,18 @@ impl Cli {
                 output,
                 use_cli,
                 timeout,
-            } => generate_agents::run_generate_agents(topic, roles, output, use_cli, timeout).await,
+                write,
+            } => {
+                generate_agents::run_generate_agents(
+                    topic,
+                    roles,
+                    output,
+                    use_cli,
+                    timeout,
+                    AccessMode::from_write_flag(write),
+                )
+                .await
+            }
         }
     }
 }

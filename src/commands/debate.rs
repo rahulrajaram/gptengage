@@ -1,5 +1,6 @@
 //! Debate command - Multi-AI debate orchestration
 
+use crate::invokers::AccessMode;
 use crate::orchestrator::{AgentFile, DebateOrchestrator, Participant};
 
 /// Debate configuration options
@@ -12,6 +13,7 @@ pub struct DebateOptions {
     pub rounds: usize,
     pub output: String,
     pub timeout: u64,
+    pub access_mode: AccessMode,
 }
 
 /// Parse participants from format "cli:persona,cli:persona" or "cli,cli"
@@ -89,6 +91,7 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
             participants,
             options.rounds,
             options.timeout,
+            options.access_mode,
         )
         .await?
     } else if let Some(agent_file) = options.agent_file {
@@ -107,6 +110,7 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
             participants,
             options.rounds,
             options.timeout,
+            options.access_mode,
         )
         .await?
     } else if let Some(participants_str) = options.participants {
@@ -121,12 +125,19 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
             participants,
             options.rounds,
             options.timeout,
+            options.access_mode,
         )
         .await?
     } else {
         println!("Using default participants: Claude, Codex, Gemini");
         println!();
-        DebateOrchestrator::run_debate(&options.topic, options.rounds, options.timeout).await?
+        DebateOrchestrator::run_debate(
+            &options.topic,
+            options.rounds,
+            options.timeout,
+            options.access_mode,
+        )
+        .await?
     };
 
     // Output results based on format

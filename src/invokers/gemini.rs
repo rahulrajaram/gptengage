@@ -1,7 +1,7 @@
 //! Gemini CLI invoker
 
 use super::base::{command_exists, execute_command};
-use super::Invoker;
+use super::{AccessMode, Invoker};
 use async_trait::async_trait;
 
 #[derive(Clone)]
@@ -9,8 +9,24 @@ pub struct GeminiInvoker;
 
 #[async_trait]
 impl Invoker for GeminiInvoker {
-    async fn invoke(&self, prompt: &str, timeout: u64) -> anyhow::Result<String> {
-        execute_command("gemini", &["--yolo"], prompt, timeout).await
+    async fn invoke(
+        &self,
+        prompt: &str,
+        timeout: u64,
+        access_mode: AccessMode,
+    ) -> anyhow::Result<String> {
+        let args = match access_mode {
+            AccessMode::ReadOnly => &["--sandbox", "--include-directories", "."][..],
+            AccessMode::WorkspaceWrite => &[
+                "--sandbox",
+                "--include-directories",
+                ".",
+                "--approval-mode",
+                "auto_edit",
+            ][..],
+        };
+
+        execute_command("gemini", args, prompt, timeout).await
     }
 
     fn name(&self) -> &str {

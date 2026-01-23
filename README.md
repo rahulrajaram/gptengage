@@ -629,27 +629,31 @@ Session files are simple JSON:
 
 ### Claude Code
 
-**Command:** `claude -p`
+**Command:** `claude -p --tools Read --allowed-tools Read`
 
 - Requires Claude Code CLI to be installed and authenticated
 - `-p` flag enables print mode (non-interactive, single-shot)
+- `--tools Read` restricts available tools to read-only access
+- `--allowed-tools Read` allows read-only access without prompting
 - Works with any model available via Claude Code
 
 ### Codex
 
-**Command:** `codex exec --full-auto`
+**Command:** `codex exec --sandbox read-only --cd .`
 
 - Requires Codex CLI to be installed
 - `exec` = execute mode
-- `--full-auto` = auto-approve operations
+- `--sandbox read-only` = restricts shell execution to read-only operations
+- `--cd .` = restricts the workspace root to the current directory
 - **Note:** May require `--skip-git-repo-check` when outside a trusted git directory
 
 ### Gemini
 
-**Command:** `gemini --yolo`
+**Command:** `gemini --sandbox --include-directories .`
 
 - Requires Google Gemini CLI to be installed and authenticated
-- `--yolo` = auto-approve all operations
+- `--sandbox` = run in sandboxed mode with approval prompts (no YOLO)
+- `--include-directories .` = limit workspace to the current directory
 
 > **Note:** Gemini CLI typically requires longer timeouts (60-120 seconds) compared to Claude or Codex. For debates, consider using `--timeout 120` or higher. The default 120-second timeout is usually sufficient, but complex prompts may need more time.
 
@@ -717,17 +721,17 @@ GPT Engage configuration is stored in `~/.gptengage/config.json`:
   "clis": {
     "claude": {
       "command": "claude",
-      "invokeArgs": ["-p"],
+      "invokeArgs": ["-p", "--tools", "Read", "--allowed-tools", "Read"],
       "detected": true
     },
     "codex": {
       "command": "codex",
-      "invokeArgs": ["exec", "--full-auto"],
+      "invokeArgs": ["exec", "--sandbox", "read-only", "--cd", "."],
       "detected": true
     },
     "gemini": {
       "command": "gemini",
-      "invokeArgs": ["--yolo"],
+      "invokeArgs": ["--sandbox", "--include-directories", "."],
       "detected": false
     }
   }

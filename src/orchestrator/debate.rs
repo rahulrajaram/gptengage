@@ -1,6 +1,6 @@
 //! Debate orchestration - Run multi-round debates
 
-use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+use crate::invokers::{AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
@@ -197,6 +197,7 @@ impl DebateOrchestrator {
         participants: Vec<Participant>,
         num_rounds: usize,
         timeout: u64,
+        access_mode: AccessMode,
     ) -> anyhow::Result<DebateResult> {
         if participants.is_empty() {
             return Err(anyhow::anyhow!("At least one participant is required"));
@@ -255,7 +256,7 @@ impl DebateOrchestrator {
                         return None;
                     }
 
-                    match invoker.invoke(&ctx, timeout).await {
+                    match invoker.invoke(&ctx, timeout, access_mode).await {
                         Ok(response) => Some(RoundResponse {
                             cli: participant_clone.cli.clone(),
                             persona: participant_clone.persona.clone(),
@@ -304,6 +305,7 @@ impl DebateOrchestrator {
         topic: &str,
         num_rounds: usize,
         timeout: u64,
+        access_mode: AccessMode,
     ) -> anyhow::Result<DebateResult> {
         let participants = vec![
             Participant::new("claude".to_string(), None),
@@ -311,7 +313,8 @@ impl DebateOrchestrator {
             Participant::new("gemini".to_string(), None),
         ];
 
-        Self::run_debate_with_participants(topic, participants, num_rounds, timeout).await
+        Self::run_debate_with_participants(topic, participants, num_rounds, timeout, access_mode)
+            .await
     }
 }
 
