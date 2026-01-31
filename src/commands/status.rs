@@ -2,6 +2,7 @@
 
 use crate::config::ConfigManager;
 use crate::invokers::{ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+use crate::plugins::PluginManager;
 use crate::session::SessionManager;
 
 /// Show status of detected CLIs and active sessions
@@ -31,6 +32,24 @@ pub async fn show_status() -> anyhow::Result<()> {
         println!("  ✗ gemini (not found in PATH)");
     }
     println!();
+
+    // Show installed plugins
+    if let Ok(plugin_manager) = PluginManager::new() {
+        let plugins = plugin_manager.list_plugins();
+        if !plugins.is_empty() {
+            println!("Installed Plugins:");
+            for plugin in plugins {
+                let available =
+                    crate::invokers::base::command_exists(&plugin.detection.check_command);
+                let status = if available { "✓" } else { "✗" };
+                println!(
+                    "  {} {} ({})",
+                    status, plugin.plugin.name, plugin.plugin.description
+                );
+            }
+            println!();
+        }
+    }
 
     // Show configuration
     let config = ConfigManager::new()?;

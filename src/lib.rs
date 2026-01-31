@@ -8,14 +8,20 @@ pub mod commands;
 pub mod config;
 pub mod invokers;
 pub mod orchestrator;
+pub mod plugins;
 pub mod session;
+pub mod templates;
 pub mod utils;
 
 pub use cli::Cli;
-pub use commands::*;
 pub use config::*;
-pub use invokers::*;
 pub use session::*;
+
+// Re-export key types explicitly to avoid ambiguous glob re-exports
+pub use commands::{debate, generate_agents, invoke, status};
+pub use invokers::{
+    get_invoker, is_valid_cli, AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker,
+};
 
 #[derive(Debug)]
 pub struct GptEngage {

@@ -1,9 +1,12 @@
 //! Invoke command - Invoke a specific CLI with optional session support
 
-use crate::invokers::{AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+use crate::cli::StdinMode;
+use crate::invokers::{get_invoker, AccessMode};
 use crate::session::SessionManager;
+use crate::utils::stdin::{format_piped_context, read_stdin_if_piped};
 
 /// Invoke a specific CLI with a prompt
+#[allow(clippy::too_many_arguments)]
 pub async fn run_invoke(
     cli: String,
     mut prompt: String,
@@ -12,7 +15,37 @@ pub async fn run_invoke(
     context_file: Option<String>,
     timeout: u64,
     access_mode: AccessMode,
+    stdin_as: StdinMode,
 ) -> anyhow::Result<()> {
+    // Handle stdin input based on mode
+    if let Some(stdin_content) = read_stdin_if_piped() {
+        match stdin_as {
+            StdinMode::Auto => {
+                if prompt.is_empty() {
+                    // No prompt provided, use stdin as prompt
+                    prompt = stdin_content;
+                } else {
+                    // Prompt provided, prepend stdin as context
+                    prompt = format!("{}\n\n{}", format_piped_context(&stdin_content), prompt);
+                }
+            }
+            StdinMode::Context => {
+                // Always prepend stdin as context
+                prompt = format!("{}\n\n{}", format_piped_context(&stdin_content), prompt);
+            }
+            StdinMode::Ignore => {
+                // Do nothing with stdin
+            }
+        }
+    }
+
+    // Validate that prompt is not empty
+    if prompt.is_empty() {
+        return Err(anyhow::anyhow!(
+            "Prompt is required. Provide as argument or pipe via stdin."
+        ));
+    }
+
     // Load context from file if provided
     if let Some(file) = context_file {
         let file_content = tokio::fs::read_to_string(&file).await?;
@@ -47,41 +80,25 @@ pub async fn run_invoke(
         prompt.clone()
     };
 
-    // Invoke the appropriate CLI
+    // Get the appropriate invoker (built-in or plugin)
+    let invoker = get_invoker(&cli).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unknown CLI: '{}'. Use a built-in CLI (claude, codex, gemini) or an installed plugin.",
+            cli
+        )
+    })?;
+
+    // Check if the CLI is available
+    if !invoker.is_available() {
+        return Err(anyhow::anyhow!(
+            "CLI '{}' not found in PATH. Ensure it is installed and accessible.",
+            cli
+        ));
+    }
+
+    // Invoke the CLI
     eprintln!("Invoking {}...", cli);
-    let response = match cli.as_str() {
-        "claude" => {
-            let invoker = ClaudeInvoker::new();
-            if !invoker.is_available() {
-                return Err(anyhow::anyhow!(
-                    "Claude Code CLI not found in PATH. Install from: https://claude.ai/code"
-                ));
-            }
-            invoker.invoke(&full_prompt, timeout, access_mode).await?
-        }
-        "codex" => {
-            let invoker = CodexInvoker::new();
-            if !invoker.is_available() {
-                return Err(anyhow::anyhow!(
-                    "Codex CLI not found in PATH. Install from: https://github.com/openai/codex"
-                ));
-            }
-            invoker.invoke(&full_prompt, timeout, access_mode).await?
-        }
-        "gemini" => {
-            let invoker = GeminiInvoker::new();
-            if !invoker.is_available() {
-                return Err(anyhow::anyhow!("Gemini CLI not found in PATH. Install from: https://ai.google.dev/gemini-api/docs/cli"));
-            }
-            invoker.invoke(&full_prompt, timeout, access_mode).await?
-        }
-        _ => {
-            return Err(anyhow::anyhow!(
-                "Unknown CLI: {}. Use 'claude', 'codex', or 'gemini'.",
-                cli
-            ))
-        }
-    };
+    let response = invoker.invoke(&full_prompt, timeout, access_mode).await?;
 
     // Print response
     println!("{}", response);

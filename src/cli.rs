@@ -1,6 +1,6 @@
 //! CLI argument parsing and command dispatching
 
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(name = "gptengage")]
@@ -72,7 +72,11 @@ pub enum Commands {
     ///   gptengage debate "REST vs GraphQL" --rounds 5 --output json
     #[command(verbatim_doc_comment)]
     Debate {
-        /// The topic to debate
+        /// The topic to debate (optional if piping via stdin)
+        ///
+        /// Can be omitted when piping input via stdin.
+        /// Example: echo "topic" | gptengage debate
+        #[arg(default_value = "", verbatim_doc_comment)]
         topic: String,
 
         /// Select a single CLI to use for all participants
@@ -123,12 +127,26 @@ pub enum Commands {
         /// Example: --agent-file agents.json
         ///
         /// Cannot be used with --participants or --agent
-        #[arg(long, conflicts_with_all = ["participants", "agent"], verbatim_doc_comment)]
+        #[arg(long, conflicts_with_all = ["participants", "agent", "template"], verbatim_doc_comment)]
         agent_file: Option<String>,
 
-        /// Number of debate rounds (default: 3)
-        #[arg(long, short = 'r', default_value = "3")]
-        rounds: usize,
+        /// Use a predefined debate template
+        ///
+        /// Templates provide pre-configured participants with personas and instructions.
+        /// Use 'gptengage template list' to see available templates.
+        ///
+        /// Examples:
+        ///   --template code-review
+        ///   --template security-audit
+        ///   --template architecture-decision
+        ///
+        /// Cannot be used with --participants, --agent, or --agent-file
+        #[arg(long, conflicts_with_all = ["participants", "agent", "agent_file"], verbatim_doc_comment)]
+        template: Option<String>,
+
+        /// Number of debate rounds (default: 3, or template default if using --template)
+        #[arg(long, short = 'r')]
+        rounds: Option<usize>,
 
         /// Output format: text, json, markdown
         #[arg(long, short = 'o', default_value = "text")]
@@ -144,6 +162,44 @@ pub enum Commands {
         /// Allow write access within the current directory (default: read-only)
         #[arg(long, verbatim_doc_comment)]
         write: bool,
+
+        /// How to interpret stdin when input is piped
+        ///
+        /// Controls behavior when data is piped to gptengage:
+        ///   auto    - Use stdin as topic if no topic provided, otherwise as context
+        ///   context - Always use stdin as additional context
+        ///   ignore  - Ignore stdin input
+        ///
+        /// Examples:
+        ///   echo "topic" | gptengage debate                    # stdin becomes topic
+        ///   cat code.rs | gptengage debate "Review" --stdin-as context  # stdin is context
+        ///   gptengage debate "topic" --stdin-as ignore         # ignore any piped input
+        #[arg(long, value_enum, default_value = "auto", verbatim_doc_comment)]
+        stdin_as: StdinMode,
+
+        /// Generate a synthesis after the debate completes
+        ///
+        /// Produces a structured summary including:
+        /// - Key points of consensus
+        /// - Points of disagreement
+        /// - Key insights
+        /// - Recommendation (if applicable)
+        ///
+        /// Example: gptengage debate "topic" --synthesize
+        #[arg(long, verbatim_doc_comment)]
+        synthesize: bool,
+
+        /// CLI to use for synthesis generation (default: claude)
+        ///
+        /// Only used when --synthesize is specified.
+        /// Example: gptengage debate "topic" --synthesize --synthesizer codex
+        #[arg(
+            long,
+            default_value = "claude",
+            requires = "synthesize",
+            verbatim_doc_comment
+        )]
+        synthesizer: String,
     },
 
     /// Invoke a specific CLI with a prompt
@@ -166,7 +222,11 @@ pub enum Commands {
         /// Which CLI to invoke: claude, codex, or gemini
         cli: String,
 
-        /// The prompt to send
+        /// The prompt to send (optional if piping via stdin)
+        ///
+        /// Can be omitted when piping input via stdin.
+        /// Example: echo "question" | gptengage invoke claude
+        #[arg(default_value = "", verbatim_doc_comment)]
         prompt: String,
 
         /// Session name for persistent conversation
@@ -202,6 +262,20 @@ pub enum Commands {
         /// Allow write access within the current directory (default: read-only)
         #[arg(long, verbatim_doc_comment)]
         write: bool,
+
+        /// How to interpret stdin when input is piped
+        ///
+        /// Controls behavior when data is piped to gptengage:
+        ///   auto    - Use stdin as prompt if no prompt provided, otherwise as context
+        ///   context - Always use stdin as additional context
+        ///   ignore  - Ignore stdin input
+        ///
+        /// Examples:
+        ///   echo "question" | gptengage invoke claude           # stdin becomes prompt
+        ///   cat code.rs | gptengage invoke claude "Review" --stdin-as context
+        ///   gptengage invoke claude "prompt" --stdin-as ignore  # ignore any piped input
+        #[arg(long, value_enum, default_value = "auto", verbatim_doc_comment)]
+        stdin_as: StdinMode,
     },
 
     /// Manage sessions
@@ -210,6 +284,37 @@ pub enum Commands {
 
     /// Show status of detected CLIs and active sessions
     Status,
+
+    /// Manage CLI plugins
+    ///
+    /// Plugins allow adding custom LLM CLIs without modifying GPT Engage source code.
+    /// Plugin files are TOML configurations stored in ~/.gptengage/plugins/
+    ///
+    /// Examples:
+    ///   # List installed plugins
+    ///   gptengage plugin list
+    ///
+    ///   # Validate a plugin file
+    ///   gptengage plugin validate ~/.gptengage/plugins/ollama.toml
+    #[command(subcommand, verbatim_doc_comment)]
+    Plugin(PluginCommands),
+
+    /// Manage debate templates
+    ///
+    /// Templates provide pre-configured debate scenarios with defined participants,
+    /// personas, and context settings for common use cases.
+    ///
+    /// Examples:
+    ///   # List available templates
+    ///   gptengage template list
+    ///
+    ///   # Show template details
+    ///   gptengage template show code-review
+    ///
+    ///   # Use a template in a debate
+    ///   gptengage debate "Review my auth code" --template code-review
+    #[command(subcommand, verbatim_doc_comment)]
+    Template(TemplateCommands),
 
     /// Manage configuration
     #[command(subcommand)]
@@ -297,6 +402,18 @@ pub enum Commands {
     },
 }
 
+/// How to interpret stdin input when piped
+#[derive(Clone, Copy, Debug, Default, ValueEnum)]
+pub enum StdinMode {
+    /// Use stdin as the topic (debate) or prompt (invoke)
+    #[default]
+    Auto,
+    /// Use stdin as additional context prepended to the topic/prompt
+    Context,
+    /// Ignore stdin input
+    Ignore,
+}
+
 #[derive(Subcommand)]
 pub enum SessionCommands {
     /// List all active sessions
@@ -316,6 +433,32 @@ pub enum SessionCommands {
         /// End all sessions
         #[arg(long)]
         all: bool,
+    },
+}
+
+/// Plugin management commands
+#[derive(Subcommand)]
+pub enum PluginCommands {
+    /// List all installed plugins
+    List,
+
+    /// Validate a plugin file without installing
+    Validate {
+        /// Path to the plugin TOML file
+        path: String,
+    },
+}
+
+/// Template management commands
+#[derive(Subcommand)]
+pub enum TemplateCommands {
+    /// List all available templates
+    List,
+
+    /// Show template details
+    Show {
+        /// Template name
+        name: String,
     },
 }
 
@@ -352,10 +495,14 @@ impl Cli {
                 instances,
                 participants,
                 agent_file,
+                template,
                 rounds,
                 output,
                 timeout,
                 write,
+                stdin_as,
+                synthesize,
+                synthesizer,
             } => {
                 debate::run_debate(debate::DebateOptions {
                     topic,
@@ -363,10 +510,14 @@ impl Cli {
                     instances,
                     participants,
                     agent_file,
+                    template,
                     rounds,
                     output,
                     timeout,
                     access_mode: AccessMode::from_write_flag(write),
+                    stdin_as,
+                    synthesize,
+                    synthesizer,
                 })
                 .await
             }
@@ -379,6 +530,7 @@ impl Cli {
                 context_file,
                 timeout,
                 write,
+                stdin_as,
             } => {
                 invoke::run_invoke(
                     cli,
@@ -388,6 +540,7 @@ impl Cli {
                     context_file,
                     timeout,
                     AccessMode::from_write_flag(write),
+                    stdin_as,
                 )
                 .await
             }
@@ -399,6 +552,16 @@ impl Cli {
             },
 
             Commands::Status => status::show_status().await,
+
+            Commands::Plugin(plugin_cmd) => match plugin_cmd {
+                PluginCommands::List => plugin::list_plugins().await,
+                PluginCommands::Validate { path } => plugin::validate_plugin(path).await,
+            },
+
+            Commands::Template(template_cmd) => match template_cmd {
+                TemplateCommands::List => template::list_templates().await,
+                TemplateCommands::Show { name } => template::show_template(name).await,
+            },
 
             Commands::Config(config_cmd) => match config_cmd {
                 ConfigCommands::Get { key } => {

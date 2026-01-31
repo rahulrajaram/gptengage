@@ -1,166 +1,36 @@
 # GPT Engage
 
-A unified CLI orchestrator for multiple LLM tools. Run debates between AI systems, maintain persistent conversation sessions, and invoke any CLI-based LLM (Claude Code, Codex, Gemini, and more).
+GPT Engage is a command-line orchestrator for multi-AI debates. It runs structured debates between Claude, Codex, Gemini, and any CLI-based LLM. GPT Engage executes all participants in parallel, injects debate context between rounds, and produces synthesis reports.
 
-## Features
+## Overview
 
-- **Multi-AI Debates**: Run structured debates between Claude, Codex, and Gemini with configurable rounds
-- **Multi-Instance Debates**: Spawn multiple instances of the same LLM to leverage nondeterminism and debate dynamics
-- **Role-Based Personas**: Assign perspectives (CEO, Architect, PM) for context-specific debates
-- **Agent Definition Files**: Structured JSON with validation for programmatic use by AI agents
-- **AI-Powered Generation**: Auto-generate rich agent definitions using `generate-agents`
-- **Persistent Sessions**: Maintain conversation history across multiple invocations with automatic context injection
-- **CLI-Only Design**: No API keys required—works with existing CLI installations
-- **Parallel Execution**: All AI systems run simultaneously during debates
-- **Flexible Output Formats**: Text, JSON, or Markdown output for debates
-- **CLI Agnostic**: Extensible architecture supports any CLI-based LLM tool
+GPT Engage solves a specific problem: getting multiple AI perspectives on a single question without manually copying responses between chat interfaces. You provide a topic, GPT Engage invokes each participant simultaneously, shares each round's responses with all participants, and optionally generates a synthesis that identifies consensus and disagreements.
 
-## Quick Reference
+**Key capabilities:**
 
-| Task | Command |
-|------|---------|
-| Check status | `gptengage status` |
-| Single invocation | `gptengage invoke <cli> "prompt"` |
-| With session | `gptengage invoke <cli> "prompt" --session name` |
-| Cross-AI debate | `gptengage debate "topic"` |
-| Multi-instance debate | `gptengage debate "topic" --agent claude` |
-| Persona debate | `gptengage debate "topic" -p "claude:CEO,codex:CTO"` |
-| Agent-file debate | `gptengage debate "topic" --agent-file agents.json` |
-| Generate agents | `gptengage generate-agents --topic "..." --roles "..." -o file.json` |
-
-## For AI Agents (Programmatic Use)
-
-If you are an AI agent using gptengage, you have multiple debate options:
-
-### Option 1: Multi-Instance Debate (Quick & Simple)
-
-For multiple independent evaluations from the same LLM:
-
-```bash
-# 3 Claude instances (leverages nondeterminism)
-gptengage debate "Your topic" --agent claude
-
-# 5 Gemini instances (custom count)
-gptengage debate "Your topic" --agent gemini --instances 5
-```
-
-### Option 2: Agent Definition Files (Full Control)
-
-For structured debates with personas, instructions, and expertise:
-
-**Step 1: Generate Agent Definitions**
-
-```bash
-gptengage generate-agents \
-  --topic "Your debate topic" \
-  --roles "Role1,Role2,Role3" \
-  --output agents.json
-```
-
-This creates a validated JSON file with schema version 1.0.
-
-**Step 2: Run Debate with Agent File**
-
-```bash
-gptengage debate "Your debate topic" --agent-file agents.json
-```
-
-**Required fields** in agent files (validated):
-- `cli`: string (non-empty)
-- `persona`: string (non-empty, required)
-- `instructions`: string (min 10 chars, required)
-- `expertise`: array of strings (optional)
-- `communication_style`: string (optional)
-
-> **Important:** The `instructions` field must be at least 10 characters. This ensures meaningful behavioral guidance for each participant. Instructions like "Be brief" (8 chars) will fail validation. Use descriptive instructions like "Focus on technical accuracy and provide concrete examples." (55 chars).
-
-**Example agent file:**
-
-```json
-{
-  "schema_version": "1.0",
-  "generated_by": "your-agent-name",
-  "participants": [
-    {
-      "cli": "claude",
-      "persona": "Technical Architect",
-      "instructions": "Focus on scalability, performance, and technical trade-offs. Challenge assumptions and ask clarifying questions.",
-      "expertise": ["system design", "distributed systems", "performance optimization"],
-      "communication_style": "Technical and detailed"
-    }
-  ]
-}
-```
-
-### Option 3: Parse Output
-
-Use `--output json` for machine-readable output:
-
-```bash
-gptengage debate "topic" --agent-file agents.json --output json > result.json
-```
-
-### Agent Integration Contract
-
-This section defines the stable interface contract for programmatic integration.
-
-#### Input Contract (Agent Definition File)
-
-| Field | Type | Required | Validation | Description |
-|-------|------|----------|------------|-------------|
-| `schema_version` | string | Yes | Must be `"1.0"` | Schema version for forward compatibility |
-| `generated_by` | string | No | Non-empty if present | Identifier of generating agent |
-| `participants` | array | Yes | Min 1 element | Array of participant definitions |
-| `participants[].cli` | string | Yes | `claude`, `codex`, or `gemini` | Target CLI for this participant |
-| `participants[].persona` | string | Yes | Non-empty | Role name (e.g., "CEO", "Architect") |
-| `participants[].instructions` | string | Yes | Min 10 characters | Behavioral instructions for the participant |
-| `participants[].expertise` | array | No | Array of strings | Areas of expertise (3-5 recommended) |
-| `participants[].communication_style` | string | No | Non-empty if present | Communication style descriptor |
-
-#### Output Contract (`--output json`)
-
-The JSON output is a single object with the following fields:
-
-| Field | Type | Always Present | Description |
-|-------|------|----------------|-------------|
-| `gptengage_version` | string | No | Version string (omitted if not set) |
-| `topic` | string | Yes | The debate topic |
-| `rounds` | array | Yes | Array of rounds, each round is an array of response objects |
-
-Each response object in `rounds` contains:
-
-| Field | Type | Always Present | Description |
-|-------|------|----------------|-------------|
-| `cli` | string | Yes | CLI identifier (e.g., `claude`, `codex`, `gemini`) |
-| `response` | string | Yes | Response content |
-| `persona` | string or null | Yes | Persona name if provided; `null` otherwise |
-
-Example output:
-
-```json
-{
-  "gptengage_version": "1.0.0",
-  "topic": "Should we use Rust instead of C?",
-  "rounds": [
-    [
-      {
-        "cli": "claude",
-        "persona": null,
-        "response": "Rust offers memory safety guarantees..."
-      },
-      {
-        "cli": "codex",
-        "persona": null,
-        "response": "C provides low-level control and portability..."
-      }
-    ]
-  ]
-}
-```
+- **Multi-AI debates** - Run Claude, Codex, and Gemini against the same prompt in parallel
+- **Multi-instance debates** - Spawn multiple instances of the same LLM to leverage nondeterminism
+- **Debate templates** - Use pre-configured scenarios for code review, architecture decisions, and security audits
+- **Synthesis generation** - Automatically generate conclusions that summarize consensus and disagreements
+- **Plugin system** - Add custom CLIs through TOML configuration files
+- **Unix composability** - Pipe content via stdin as topic or context
+- **Persistent sessions** - Maintain conversation history across invocations
 
 ## Installation
 
-### Quick Install (Recommended)
+### Prerequisites
+
+GPT Engage requires Rust 1.86 or later and at least one LLM CLI:
+
+| CLI | Installation |
+|-----|--------------|
+| Claude Code | https://claude.com/claude-code |
+| Codex CLI | https://github.com/openai/codex-cli |
+| Gemini CLI | https://ai.google.dev/docs/gemini_cli |
+
+### Build and Install
+
+Clone the repository and run the installer:
 
 ```bash
 git clone https://github.com/rahulrajaram/gptengage
@@ -168,35 +38,19 @@ cd gptengage
 ./install.sh
 ```
 
-The installer will:
-1. Build GPT Engage in release mode
-2. Copy the binary to `~/.local/bin/gptengage`
-3. Detect your installed CLIs
-4. Show PATH configuration if needed
+The installer builds GPT Engage in release mode, copies the binary to `~/.local/bin/gptengage`, and verifies your PATH configuration.
 
-### Manual Install
+For manual installation:
 
 ```bash
 cargo build --release
 cp target/release/gptengage ~/.local/bin/
-chmod +x ~/.local/bin/gptengage
-
-# Add to PATH if needed
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-### Prerequisites
-
-- **Rust 1.86+** (for building from source)
-- At least one of the following LLM CLIs:
-  - [Claude Code](https://claude.com/claude-code) (`claude` command)
-  - [Codex CLI](https://github.com/openai/codex-cli) (`codex` command)
-  - [Google Gemini CLI](https://ai.google.dev/docs/gemini_cli) (`gemini` command)
-
-### Verify Installation
+Verify the installation:
 
 ```bash
-gptengage --help
 gptengage status
 ```
 
@@ -204,237 +58,669 @@ gptengage status
 
 ### Check Available CLIs
 
-```bash
-$ gptengage status
+Run the status command to see which CLIs GPT Engage detects:
 
+```bash
+gptengage status
+```
+
+Output:
+
+```
 GPT Engage v1.0.0
 
 Detected CLIs:
   ✓ claude (Claude Code)
   ✓ codex (Codex CLI)
-  ✓ gemini (Gemini CLI)
+  ✗ gemini (Gemini CLI)
+
+Plugins:
+  ✓ ollama (Local LLM via Ollama)
 
 Active Sessions: 0
 ```
 
-### Invoke a Single CLI
-
-```bash
-$ gptengage invoke claude "Explain quantum computing"
-```
-
-### Create a Persistent Session
-
-Start a conversation that you can continue later:
-
-```bash
-$ gptengage invoke claude "Review my authentication code" --session auth-review
-[Claude's response...]
-(Session 'auth-review' saved)
-
-$ gptengage invoke claude "Fix the JWT vulnerability" --session auth-review
-[Claude now has context from the previous message...]
-(Session 'auth-review' saved)
-```
-
-### View Session History
-
-```bash
-$ gptengage session list
-┌──────────────┬────────┬─────────────────────────┬──────────────┐
-│ Session      │ CLI    │ Topic                   │ Last Used    │
-├──────────────┼────────┼─────────────────────────┼──────────────┤
-│ auth-review  │ claude │ Review my authenticatio │ 5 mins ago   │
-└──────────────┴────────┴─────────────────────────┴──────────────┘
-
-$ gptengage session show auth-review
-```
-
-### Run a Multi-AI Debate
+### Run a Debate
 
 Start a debate on any topic:
 
 ```bash
-$ gptengage debate "Should we use TypeScript or JavaScript?"
+gptengage debate "Should we use TypeScript or JavaScript for our new project?"
+```
 
+GPT Engage runs all detected CLIs in parallel, collects responses, and displays each round:
+
+```
 GPT ENGAGE DEBATE
-Topic: Should we use TypeScript or JavaScript?
-
-Running round 1 of 3...
+Topic: Should we use TypeScript or JavaScript for our new project?
 
 ROUND 1
 ────────────────────────────────────────
-CLAUDE:
-TypeScript offers type safety and better tooling...
+Claude:
+TypeScript provides compile-time type checking that catches errors before runtime...
 
-CODEX:
-JavaScript provides speed and simplicity...
-
-GEMINI:
-Consider the team's experience level...
+Codex:
+JavaScript offers faster iteration and lower barrier to entry...
 
 ROUND 2
 ────────────────────────────────────────
-[Each AI responds, now with context from previous round...]
+[Each participant responds with context from Round 1]
 
 DEBATE COMPLETE
+Summary: 3 round(s), 2 participant(s)
+```
+
+### Generate Synthesis
+
+Add `--synthesize` to generate a structured conclusion:
+
+```bash
+gptengage debate "Microservices vs Monolith" --synthesize
+```
+
+The synthesis includes:
+- Summary of the debate
+- Points of consensus
+- Points of disagreement
+- Key insights
+- Recommendation (when applicable)
+
+### Use Templates
+
+List available templates:
+
+```bash
+gptengage template list
+```
+
+Run a debate with a template:
+
+```bash
+gptengage debate "Review PR #123" --template code-review
+```
+
+### Pipe Content
+
+Pipe file content as context:
+
+```bash
+cat src/auth.rs | gptengage debate "Review this authentication code" --stdin-as context
+```
+
+Pipe content as the topic:
+
+```bash
+echo "Is Rust better than Go for CLI tools?" | gptengage debate
 ```
 
 ## Commands
 
-### Invoke Command
+### debate
 
-Invoke a specific LLM CLI with optional session support.
+Run a structured debate between multiple AI participants.
 
 ```bash
-gptengage invoke <cli> <prompt> [OPTIONS]
-
-Arguments:
-  <CLI>      The CLI to invoke: claude, codex, or gemini
-  <PROMPT>   The prompt/request to send
-
-Options:
-  --session <NAME>       Use or create a persistent session
-  --topic <DESC>         Set the session topic (auto-generated if omitted)
-  --context-file <PATH>  Include file contents in the prompt
-  --timeout <SECONDS>    Command timeout (default: 120)
-  --write                Allow write access within the current directory (default: read-only)
+gptengage debate <TOPIC> [OPTIONS]
 ```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `TOPIC` | The debate topic. Provide as argument or pipe via stdin. |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--agent <CLI>` | Run multiple instances of a single CLI instead of cross-AI debate. |
+| `--instances <N>` | Number of instances when using `--agent`. Default: 3. |
+| `-p, --participants <LIST>` | Specify participants with optional personas. Format: `cli:persona,cli:persona`. |
+| `--agent-file <FILE>` | Load participant definitions from a JSON file. |
+| `--template <NAME>` | Use a predefined debate template. |
+| `--rounds <N>` | Number of debate rounds. Default: 3. |
+| `--synthesize` | Generate a synthesis after the debate completes. |
+| `--synthesizer <CLI>` | CLI to use for synthesis generation. Default: `claude`. |
+| `--output <FORMAT>` | Output format: `text`, `json`, or `markdown`. Default: `text`. |
+| `--stdin-as <MODE>` | How to interpret stdin: `auto`, `context`, or `ignore`. Default: `auto`. |
+| `--timeout <SECONDS>` | Timeout per CLI per round. Default: 120. |
+| `--write` | Allow write access within the current directory. Default: read-only. |
 
 **Examples:**
 
+Cross-AI debate with default participants:
+
 ```bash
-# Simple invocation
-gptengage invoke claude "What is machine learning?"
-
-# With context file
-gptengage invoke claude "Review this code" --context-file src/auth.rs
-
-# With session
-gptengage invoke claude "Explain async/await" --session learning
-
-# Continue session
-gptengage invoke claude "Give an example" --session learning
-
-# Custom timeout (for slower CLIs like Gemini)
-gptengage invoke gemini "Complex task" --timeout 120
+gptengage debate "Should we adopt Kubernetes?"
 ```
 
-### Session Commands
+Multi-instance debate with the same CLI:
+
+```bash
+gptengage debate "Code review best practices" --agent claude --instances 5
+```
+
+Debate with personas:
+
+```bash
+gptengage debate "API design strategy" -p "claude:Backend Lead,codex:Frontend Lead,gemini:Product Manager"
+```
+
+Debate with template and synthesis:
+
+```bash
+gptengage debate "Review this PR" --template code-review --synthesize --output markdown
+```
+
+JSON output for programmatic consumption:
+
+```bash
+gptengage debate "topic" --output json > result.json
+```
+
+### invoke
+
+Invoke a single CLI with optional session support.
+
+```bash
+gptengage invoke <CLI> <PROMPT> [OPTIONS]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `CLI` | The CLI to invoke: `claude`, `codex`, `gemini`, or a plugin name. |
+| `PROMPT` | The prompt to send. Provide as argument or pipe via stdin. |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--session <NAME>` | Use or create a persistent session. |
+| `--topic <DESC>` | Set the session topic. Auto-generated if omitted. |
+| `--context-file <PATH>` | Include file contents in the prompt. |
+| `--stdin-as <MODE>` | How to interpret stdin: `auto`, `context`, or `ignore`. Default: `auto`. |
+| `--timeout <SECONDS>` | Command timeout. Default: 120. |
+| `--write` | Allow write access within the current directory. |
+
+**Examples:**
+
+Simple invocation:
+
+```bash
+gptengage invoke claude "Explain async/await in Rust"
+```
+
+With session for multi-turn conversation:
+
+```bash
+gptengage invoke claude "Review my authentication code" --session auth-review
+gptengage invoke claude "Fix the JWT vulnerability you found" --session auth-review
+```
+
+With context file:
+
+```bash
+gptengage invoke codex "Optimize this function" --context-file src/parser.rs
+```
+
+Pipe content as prompt:
+
+```bash
+echo "What is 2 + 2?" | gptengage invoke claude
+```
+
+### template
+
+Manage debate templates.
+
+```bash
+gptengage template <COMMAND>
+```
+
+**Subcommands:**
+
+| Command | Description |
+|---------|-------------|
+| `list` | List all available templates (built-in and user-defined). |
+| `show <NAME>` | Display template details including participants and context. |
+
+**Examples:**
+
+List templates:
+
+```bash
+gptengage template list
+```
+
+Output:
+
+```
+Available Templates:
+
+  code-review (built-in)
+      Multi-perspective code review with security, performance, and maintainability focus
+      Participants: 3, Rounds: 2
+
+  architecture-decision (built-in)
+      Evaluate architectural choices from multiple stakeholder perspectives
+      Participants: 3, Rounds: 3
+
+  security-audit (built-in)
+      Security-focused analysis from CISO, engineer, and compliance perspectives
+      Participants: 3, Rounds: 2
+
+Use a template: gptengage debate "topic" --template <name>
+```
+
+Show template details:
+
+```bash
+gptengage template show code-review
+```
+
+### plugin
+
+Manage custom CLI plugins.
+
+```bash
+gptengage plugin <COMMAND>
+```
+
+**Subcommands:**
+
+| Command | Description |
+|---------|-------------|
+| `list` | List all installed plugins. |
+| `validate <FILE>` | Validate a plugin configuration file. |
+
+**Examples:**
+
+List plugins:
+
+```bash
+gptengage plugin list
+```
+
+Validate a plugin file:
+
+```bash
+gptengage plugin validate ~/.gptengage/plugins/ollama.toml
+```
+
+### session
 
 Manage persistent conversation sessions.
 
 ```bash
-gptengage session list         # List all active sessions
-gptengage session show <NAME>  # Show session history
-gptengage session end <NAME>   # End and delete a session
-gptengage session end --all    # End all sessions
+gptengage session <COMMAND>
 ```
 
-**Examples:**
+**Subcommands:**
+
+| Command | Description |
+|---------|-------------|
+| `list` | List all active sessions. |
+| `show <NAME>` | Display session history. |
+| `end <NAME>` | Delete a session. |
+| `end --all` | Delete all sessions. |
+
+### generate-agents
+
+Generate AI-powered agent definitions for structured debates.
 
 ```bash
-$ gptengage session list
-┌──────────────┬────────┬─────────────────────────┬──────────────┐
-│ Session      │ CLI    │ Topic                   │ Last Used    │
-├──────────────┼────────┼─────────────────────────┼──────────────┤
-│ auth-review  │ claude │ Review my authenticatio │ 5 mins ago   │
-│ perf-check   │ codex  │ Optimize database query │ 2 hours ago  │
-└──────────────┴────────┴─────────────────────────┴──────────────┘
-
-$ gptengage session show auth-review
-[Shows full conversation history with timestamps]
-
-$ gptengage session end auth-review
-✓ Session 'auth-review' deleted.
+gptengage generate-agents --topic <TOPIC> --roles <ROLES> --output <FILE> [OPTIONS]
 ```
 
-### Debate Command
+**Required Options:**
 
-Run a structured debate between multiple AI systems with optional personas and agent definitions.
+| Option | Description |
+|--------|-------------|
+| `--topic <TOPIC>` | The debate topic for context. |
+| `--roles <ROLES>` | Comma-separated list of roles. |
+| `--output <FILE>` | Output file path for generated JSON. |
 
-```bash
-gptengage debate <topic> [OPTIONS]
+**Optional Options:**
 
-Arguments:
-  <TOPIC>  The debate topic
+| Option | Description |
+|--------|-------------|
+| `--use-cli <CLI>` | CLI to use for generation. Default: `claude`. |
+| `--timeout <SECONDS>` | Timeout. Default: 120. |
 
-Options:
-      --agent <CLI>                  Single CLI to use (claude, codex, or gemini)
-      --instances <N>                Number of instances (default: 3 when --agent specified)
-  -p, --participants <PARTICIPANTS>  Participants with personas (format: "cli:persona,cli:persona")
-      --agent-file <FILE>            Path to agent definition JSON file
-      --rounds <N>                   Number of rounds (default: 3)
-      --output <FORMAT>              Output format: text, json, markdown (default: text)
-      --timeout <SECONDS>            Timeout per CLI per round (default: 120)
-      --write                        Allow write access within the current directory (default: read-only)
-```
-
-#### Simple Debate (Cross-AI, No Personas)
+**Example:**
 
 ```bash
-# Default 3-round debate with Claude, Codex, and Gemini
-gptengage debate "Should we migrate to microservices?"
-```
-
-This mode provides **model diversity** - different LLMs (Claude vs Codex vs Gemini) bring different perspectives.
-
-#### Multi-Instance Debate (Same LLM, Leverages Nondeterminism)
-
-```bash
-# 3 Claude instances (default)
-gptengage debate "Code review best practices" --agent claude
-
-# 5 Gemini instances
-gptengage debate "API design patterns" --agent gemini --instances 5
-
-# Custom rounds
-gptengage debate "Security audit checklist" --agent claude --instances 3 --rounds 4
-```
-
-This mode leverages **LLM nondeterminism** - the same LLM will produce different outputs each time, and participants respond to each other's inputs during the debate. Useful when you want multiple perspectives from the same model.
-
-**When to use:**
-- You want multiple independent evaluations from the same LLM
-- You need diverse viewpoints but prefer a single model's style
-- You're testing for consistency across nondeterministic outputs
-
-#### Debate with Personas (Perspective Diversity)
-
-Assign roles/personas to participants for perspective-based debates:
-
-```bash
-# Three Claude instances with different roles
-gptengage debate "Should we adopt Kubernetes?" \
-  -p "claude:CTO,claude:Principal Architect,claude:DevOps Lead"
-
-# Mixed CLIs with personas
-gptengage debate "API design strategy" \
-  -p "claude:Backend Lead,codex:Frontend Lead,gemini:Product Manager"
-
-# 5 rounds with personas and JSON output
-gptengage debate "Microservices vs Monolith" \
-  -p "claude:CEO,claude:Architect,codex:Engineer" \
-  --rounds 5 --output json
-```
-
-#### Debate with Agent Definition Files (For Agents/Programmatic Use)
-
-Agent files provide full structured definitions with instructions, expertise, and communication styles:
-
-```bash
-# Generate agent definitions using AI
 gptengage generate-agents \
   --topic "Should we migrate to microservices?" \
   --roles "CEO,Principal Architect,Product Manager" \
   --output agents.json
 
-# Use the generated agents in a debate
-gptengage debate "Should we migrate to microservices?" \
-  --agent-file agents.json
+gptengage debate "Should we migrate to microservices?" --agent-file agents.json
 ```
 
-**Agent file format** (JSON schema version 1.0):
+### status
+
+Display GPT Engage status, detected CLIs, plugins, and active sessions.
+
+```bash
+gptengage status
+```
+
+## Debate Templates
+
+GPT Engage includes five built-in templates. Each template defines participants with specific personas, instructions, and expertise areas.
+
+### code-review
+
+Multi-perspective code review focusing on security, performance, and maintainability.
+
+**Participants:**
+- Security Reviewer (Claude) - Identifies vulnerabilities, injection risks, and authentication issues
+- Performance Reviewer (Claude) - Finds bottlenecks, inefficient algorithms, and resource leaks
+- Maintainability Reviewer (Claude) - Evaluates readability, test coverage, and coding standards
+
+**Usage:**
+
+```bash
+cat pull_request.diff | gptengage debate "Review these changes" --template code-review --stdin-as context
+```
+
+### architecture-decision
+
+Evaluate architectural choices from multiple stakeholder perspectives.
+
+**Participants:**
+- Solution Architect (Claude) - Focuses on scalability, reliability, and technical trade-offs
+- Senior Developer (Codex) - Considers implementation complexity and developer experience
+- Operations Engineer (Gemini) - Evaluates deployment, monitoring, and operational concerns
+
+### security-audit
+
+Security-focused analysis from multiple security perspectives.
+
+**Participants:**
+- CISO (Claude) - Strategic security risks and business impact
+- Security Engineer (Claude) - Technical vulnerabilities and attack vectors
+- Compliance Officer (Claude) - Regulatory requirements and audit concerns
+
+### api-design
+
+API design review from consumer and provider perspectives.
+
+**Participants:**
+- API Architect (Claude) - RESTful design, versioning, and documentation
+- Frontend Developer (Codex) - Developer experience and client integration
+- Backend Developer (Gemini) - Implementation concerns and performance
+
+### incident-postmortem
+
+Structured incident analysis for post-incident reviews.
+
+**Participants:**
+- SRE Lead (Claude) - Root cause analysis and reliability improvements
+- Development Lead (Codex) - Code-level issues and fix strategies
+- Product Manager (Gemini) - Customer impact and communication
+
+### Custom Templates
+
+Create custom templates by adding TOML files to `~/.gptengage/templates/`:
+
+```toml
+# ~/.gptengage/templates/my-template.toml
+[template]
+name = "my-template"
+description = "Custom debate template"
+default_rounds = 3
+
+[[participants]]
+cli = "claude"
+persona = "Expert A"
+instructions = "Focus on aspect X. Provide specific examples and cite sources."
+expertise = ["topic1", "topic2", "topic3"]
+
+[[participants]]
+cli = "codex"
+persona = "Expert B"
+instructions = "Focus on aspect Y. Challenge assumptions and propose alternatives."
+expertise = ["topic4", "topic5"]
+
+[context]
+prefix = "Consider the following context:"
+suffix = "Provide actionable recommendations."
+```
+
+## Plugin System
+
+GPT Engage supports custom CLIs through TOML-based plugin configuration. Plugins enable integration with any command-line LLM tool.
+
+### Plugin Location
+
+Place plugin files in `~/.gptengage/plugins/` with `.toml` extension.
+
+### Plugin Format
+
+```toml
+# ~/.gptengage/plugins/ollama.toml
+[plugin]
+name = "ollama"
+description = "Local LLM via Ollama"
+command = "ollama"
+
+[invoke]
+base_args = ["run", "llama3"]
+prompt_mode = "stdin"
+
+[access]
+readonly_args = []
+write_args = []
+
+[detection]
+check_command = "ollama"
+check_args = ["--version"]
+```
+
+### Configuration Fields
+
+**[plugin] section:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Plugin identifier used in commands. |
+| `description` | Yes | Human-readable description. |
+| `command` | Yes | Executable command name. |
+
+**[invoke] section:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `base_args` | Yes | Base arguments passed to the command. |
+| `prompt_mode` | Yes | How to pass the prompt: `stdin`, `arg`, or `arg_last`. |
+| `prompt_arg` | No | Argument flag for prompt when using `arg` mode. |
+
+**[access] section:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `readonly_args` | Yes | Additional arguments for read-only mode. |
+| `write_args` | Yes | Additional arguments for write mode. |
+
+**[detection] section:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `check_command` | Yes | Command to verify CLI availability. |
+| `check_args` | Yes | Arguments for availability check. |
+
+### Example: Aider Plugin
+
+```toml
+# ~/.gptengage/plugins/aider.toml
+[plugin]
+name = "aider"
+description = "AI pair programming with Aider"
+command = "aider"
+
+[invoke]
+base_args = ["--message"]
+prompt_mode = "arg_last"
+
+[access]
+readonly_args = ["--no-auto-commits"]
+write_args = ["--auto-commits"]
+
+[detection]
+check_command = "aider"
+check_args = ["--version"]
+```
+
+### Using Plugins
+
+After creating a plugin file, verify it appears in status:
+
+```bash
+gptengage status
+```
+
+Use the plugin in debates:
+
+```bash
+gptengage debate "topic" -p "claude:Analyst,ollama:Reviewer"
+```
+
+Or invoke directly:
+
+```bash
+gptengage invoke ollama "Explain this concept"
+```
+
+## Stdin Piping
+
+GPT Engage accepts input via Unix pipes for composability with other tools.
+
+### Piping Modes
+
+| Mode | Behavior |
+|------|----------|
+| `auto` | Use stdin as topic if no topic argument provided; otherwise use as context. |
+| `context` | Always prepend stdin as context with `[PIPED CONTEXT]` markers. |
+| `ignore` | Discard stdin input. |
+
+### Examples
+
+Pipe as topic:
+
+```bash
+echo "Is functional programming better than OOP?" | gptengage debate
+```
+
+Pipe file as context with explicit topic:
+
+```bash
+cat error.log | gptengage debate "What caused this error?" --stdin-as context
+```
+
+Pipe git diff for code review:
+
+```bash
+git diff HEAD~1 | gptengage debate "Review these changes" --template code-review --stdin-as context
+```
+
+Pipe to invoke:
+
+```bash
+cat README.md | gptengage invoke claude "Summarize this document"
+```
+
+### Context Injection Format
+
+When stdin is used as context, GPT Engage injects it with markers:
+
+```
+[PIPED CONTEXT]
+<stdin content>
+[/PIPED CONTEXT]
+
+<topic or prompt>
+```
+
+## Synthesis Generation
+
+GPT Engage generates structured synthesis reports after debates complete.
+
+### Enabling Synthesis
+
+Add `--synthesize` to any debate command:
+
+```bash
+gptengage debate "topic" --synthesize
+```
+
+### Specifying Synthesizer
+
+By default, Claude generates the synthesis. Specify a different CLI with `--synthesizer`:
+
+```bash
+gptengage debate "topic" --synthesize --synthesizer codex
+```
+
+### Synthesis Output
+
+The synthesis includes:
+
+| Field | Description |
+|-------|-------------|
+| `summary` | 2-3 sentence overview of the debate. |
+| `consensus_points` | Points where participants agreed. |
+| `disagreement_points` | Points where participants disagreed. |
+| `key_insights` | Notable insights that emerged. |
+| `recommendation` | Actionable recommendation when applicable. |
+
+**Text output:**
+
+```
+SYNTHESIS
+────────────────────────────────────────
+
+Summary:
+  The debate focused on microservices vs monolith architecture...
+
+Consensus:
+  • All participants agreed that team size affects the decision
+  • Performance requirements favor monolithic architecture initially
+
+Disagreements:
+  • Timeline for migration varied significantly between perspectives
+
+Key Insights:
+  • Start with a modular monolith and extract services when needed
+
+Recommendation:
+  Begin with a well-structured monolith and identify extraction candidates...
+```
+
+**JSON output:**
+
+```json
+{
+  "topic": "Microservices vs Monolith",
+  "rounds": [...],
+  "synthesis": {
+    "summary": "The debate focused on...",
+    "consensus_points": ["Point 1", "Point 2"],
+    "disagreement_points": ["Point 1"],
+    "key_insights": ["Insight 1"],
+    "recommendation": "Begin with..."
+  }
+}
+```
+
+## Agent Definition Files
+
+Agent definition files provide structured participant configurations for programmatic use.
+
+### File Format
 
 ```json
 {
@@ -444,158 +730,45 @@ gptengage debate "Should we migrate to microservices?" \
     {
       "cli": "claude",
       "persona": "CEO",
-      "instructions": "Focus on business impact, ROI, and strategic alignment. Be decisive but ask about risks. Keep responses under 3 paragraphs.",
-      "expertise": ["business strategy", "finance", "leadership", "market analysis"],
+      "instructions": "Focus on business impact, ROI, and strategic alignment. Be decisive but ask about risks.",
+      "expertise": ["business strategy", "finance", "leadership"],
       "communication_style": "Executive - concise and action-oriented"
-    },
-    {
-      "cli": "claude",
-      "persona": "Principal Architect",
-      "instructions": "Evaluate technical feasibility, scalability, and maintainability. Raise concerns about technical debt and long-term consequences.",
-      "expertise": ["system design", "distributed systems", "security", "scalability"],
-      "communication_style": "Technical and thorough"
     }
   ]
 }
 ```
 
-**Validation:** Agent files enforce strict validation:
-- ✅ `persona` field is required and non-empty
-- ✅ `instructions` field is required (minimum 10 characters)
-- ✅ Schema version must be "1.0"
-- ❌ Fails with clear error message if validation fails
+### Field Validation
 
-This allows **agents** (programmatic use) to ensure structure while **humans** keep the simple `-p` format.
+| Field | Required | Validation |
+|-------|----------|------------|
+| `schema_version` | Yes | Must be `"1.0"`. |
+| `generated_by` | No | Non-empty if present. |
+| `participants` | Yes | At least one participant. |
+| `participants[].cli` | Yes | Valid CLI name or plugin. |
+| `participants[].persona` | Yes | Non-empty string. |
+| `participants[].instructions` | Yes | Minimum 10 characters. |
+| `participants[].expertise` | No | Array of strings. |
+| `participants[].communication_style` | No | Non-empty if present. |
 
-### Generate Agents Command
+### Generating Agent Files
 
-**FOR AGENTS/PROGRAMMATIC USE:** Generate AI-powered agent definitions with full structured metadata.
-
-```bash
-gptengage generate-agents --topic <TOPIC> --roles <ROLES> --output <FILE> [OPTIONS]
-
-Required:
-  --topic <TOPIC>   The debate topic (provides context for agent generation)
-  --roles <ROLES>   Comma-separated list of roles (e.g., "CEO,Architect,PM")
-  --output <FILE>   Output file path for the generated JSON
-
-Options:
-  --use-cli <CLI>   CLI to use for generation: claude, codex, gemini (default: claude)
-  --timeout <SECS>  Timeout in seconds (default: 120)
-  --write           Allow write access within the current directory (default: read-only)
-```
-
-**Examples:**
+Use `generate-agents` to create agent files with AI assistance:
 
 ```bash
-# Generate 3 agents for a microservices debate
 gptengage generate-agents \
-  --topic "Should we migrate to microservices?" \
-  --roles "CEO,Principal Architect,Product Manager" \
+  --topic "Cloud migration strategy" \
+  --roles "CTO,Cloud Architect,Security Lead" \
   --output agents.json
-
-# Use Codex instead of Claude for generation
-gptengage generate-agents \
-  --topic "API design strategy" \
-  --roles "Backend Lead,Frontend Lead,DBA" \
-  --output api-agents.json \
-  --use-cli codex
-
-# Generate security-focused agents
-gptengage generate-agents \
-  --topic "Cloud security audit findings" \
-  --roles "CISO,Security Architect,Compliance Officer" \
-  --output security-agents.json
 ```
 
-**What it does:**
+## Session Management
 
-1. Uses AI (Claude/Codex/Gemini) to generate detailed agent definitions
-2. Creates structured JSON with:
-   - **persona**: Role name (e.g., "CEO", "Principal Architect")
-   - **instructions**: Detailed behavioral instructions (2-4 sentences)
-   - **expertise**: Array of 3-5 expertise areas
-   - **communication_style**: How this role communicates
-3. Validates all fields before saving
-4. Outputs ready-to-use JSON file with schema version 1.0
+Sessions maintain conversation history across invocations without modifying underlying CLIs.
 
-**Output:**
+### How Sessions Work
 
-```
-✅ Generated 3 agent definition(s)
-📄 Saved to: agents.json
-
-Agents:
-  - claude (CEO)
-  - claude (Principal Architect)
-  - codex (Product Manager)
-
-Use with: gptengage debate "Should we migrate to microservices?" --agent-file agents.json
-```
-
-**Why use this?**
-
-- **For agents**: Ensures strict validation and structured output
-- **For complex debates**: Rich context injection with instructions and expertise
-- **For repeatability**: Save and reuse agent definitions across multiple debates
-
-### Status Command
-
-Show available CLIs and active sessions.
-
-```bash
-gptengage status
-```
-
-**Output:**
-
-```
-GPT Engage v1.0.0
-
-Detected CLIs:
-  ✓ claude (Claude Code)
-  ✓ codex (Codex CLI)
-  ✓ gemini (Gemini CLI)
-
-Active Sessions: 2
-  • auth-review (claude) - 5 mins ago
-  • perf-check (codex) - 2 hours ago
-
-Config: ~/.gptengage/config.json
-Sessions: ~/.gptengage/sessions/
-```
-
-## Exit Codes
-
-GPT Engage uses standardized exit codes for scripting and automation:
-
-| Exit Code | Meaning | Example Scenario |
-|-----------|---------|------------------|
-| 0 | Success | Command completed successfully |
-| 1 | CLI not found or invocation failed | Specified CLI not installed or returned error |
-| 2 | Session error or invalid format | Invalid session name, corrupted session file, or malformed JSON |
-| 3 | File not found | Agent file, context file, or config file does not exist |
-| 4 | Timeout exceeded | CLI did not respond within the specified timeout |
-
-**Example usage in scripts:**
-
-```bash
-gptengage invoke claude "test prompt" --timeout 60
-exit_code=$?
-
-case $exit_code in
-  0) echo "Success" ;;
-  1) echo "CLI error - check installation" ;;
-  2) echo "Session/format error" ;;
-  3) echo "File not found" ;;
-  4) echo "Timeout - increase --timeout value" ;;
-  *) echo "Unknown error: $exit_code" ;;
-esac
-```
-
-## How Sessions Work
-
-GPT Engage maintains conversation history without modifying the underlying CLIs. When you continue a session, the full conversation history is injected into the prompt:
+When you continue a session, GPT Engage injects the full history into the prompt:
 
 ```
 [CONVERSATION HISTORY]
@@ -610,25 +783,9 @@ Explain how to implement secure token rotation
 [/CURRENT REQUEST]
 ```
 
-This allows Claude, Codex, or Gemini to see the full context and respond appropriately.
+### Session Storage
 
-## File Storage
-
-GPT Engage stores all data in `~/.gptengage/`:
-
-```
-~/.gptengage/
-├── config.json                  # Configuration
-├── sessions/                    # Conversation history
-│   ├── auth-review.json
-│   ├── perf-check.json
-│   └── ...
-└── logs/                        # Optional debug logs
-```
-
-> **Warning:** Session files are stored unencrypted on disk. Do not include sensitive information (passwords, API keys, PII) in session prompts or responses. Consider using `gptengage session end --all` after working with sensitive topics.
-
-Session files are simple JSON:
+Sessions are stored in `~/.gptengage/sessions/` as JSON files:
 
 ```json
 {
@@ -652,184 +809,185 @@ Session files are simple JSON:
 }
 ```
 
-## CLI Requirements & Flags
+### Security Considerations
+
+Session files are stored unencrypted. Do not include sensitive information (passwords, API keys, PII) in session prompts. Use `gptengage session end --all` after working with sensitive topics.
+
+## Output Formats
+
+GPT Engage supports three output formats for debate results.
+
+### Text (Default)
+
+Human-readable format with visual separators:
+
+```bash
+gptengage debate "topic"
+```
+
+### JSON
+
+Machine-readable format for programmatic consumption:
+
+```bash
+gptengage debate "topic" --output json
+```
+
+Output structure:
+
+```json
+{
+  "gptengage_version": "1.0.0",
+  "topic": "Should we use Rust?",
+  "rounds": [
+    [
+      {"cli": "claude", "persona": null, "response": "..."},
+      {"cli": "codex", "persona": null, "response": "..."}
+    ]
+  ],
+  "synthesis": null
+}
+```
+
+### Markdown
+
+Formatted for documentation or reports:
+
+```bash
+gptengage debate "topic" --output markdown > debate.md
+```
+
+## Exit Codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | Success |
+| 1 | CLI not found or invocation failed |
+| 2 | Session error or invalid format |
+| 3 | File not found |
+| 4 | Timeout exceeded |
+
+Use exit codes for scripting:
+
+```bash
+gptengage invoke claude "test" --timeout 60
+if [ $? -eq 4 ]; then
+  echo "Timeout - increase --timeout value"
+fi
+```
+
+## CLI Requirements
 
 ### Claude Code
 
-**Command:** `claude -p --tools Read --allowed-tools Read`
+GPT Engage invokes Claude with:
 
-- Requires Claude Code CLI to be installed and authenticated
-- `-p` flag enables print mode (non-interactive, single-shot)
-- `--tools Read` restricts available tools to read-only access
-- `--allowed-tools Read` allows read-only access without prompting
-- Works with any model available via Claude Code
+```bash
+claude -p --tools Read --allowed-tools Read
+```
 
-### Codex
+With `--write` flag:
 
-**Command:** `codex exec --sandbox read-only --cd .`
+```bash
+claude -p
+```
 
-- Requires Codex CLI to be installed
-- `exec` = execute mode
-- `--sandbox read-only` = restricts shell execution to read-only operations
-- `--cd .` = restricts the workspace root to the current directory
-- **Note:** May require `--skip-git-repo-check` when outside a trusted git directory
+### Codex CLI
 
-### Gemini
+GPT Engage invokes Codex with:
 
-**Command:** `gemini --sandbox --include-directories .`
+```bash
+codex exec --sandbox read-only --cd .
+```
 
-- Requires Google Gemini CLI to be installed and authenticated
-- `--sandbox` = run in sandboxed mode with approval prompts (no YOLO)
-- `--include-directories .` = limit workspace to the current directory
+With `--write` flag:
 
-> **Note:** Gemini CLI typically requires longer timeouts (60-120 seconds) compared to Claude or Codex. For debates, consider using `--timeout 120` or higher. The default 120-second timeout is usually sufficient, but complex prompts may need more time.
+```bash
+codex exec --cd .
+```
+
+### Gemini CLI
+
+GPT Engage invokes Gemini with:
+
+```bash
+gemini --sandbox --include-directories .
+```
+
+Gemini typically requires longer timeouts. Use `--timeout 180` for complex prompts.
+
+## File Locations
+
+| Path | Purpose |
+|------|---------|
+| `~/.gptengage/config.json` | Configuration file |
+| `~/.gptengage/sessions/` | Session storage |
+| `~/.gptengage/plugins/` | Custom CLI plugins |
+| `~/.gptengage/templates/` | User-defined templates |
 
 ## Troubleshooting
 
-### "Claude Code CLI not found in PATH"
+### CLI not found
 
-Install Claude Code or add it to your PATH:
+Verify the CLI is installed and in your PATH:
 
 ```bash
-# Check if claude is available
 which claude
-
-# Add Claude Code to PATH (adjust path as needed)
-export PATH="/path/to/claude:$PATH"
+which codex
+which gemini
 ```
 
 ### Codex requires git repository trust
 
-If you see: `Not inside a trusted directory and --skip-git-repo-check was not specified`
-
-Run codex once in a trusted directory to add it to the trust list, or use Codex from within a git repository.
+Run Codex once in a trusted directory to add it to the trust list, or run GPT Engage from within a git repository.
 
 ### Gemini timeout errors
 
-Gemini can be slow. Increase the timeout:
+Increase the timeout:
 
 ```bash
-gptengage invoke gemini "complex prompt" --timeout 120
+gptengage invoke gemini "prompt" --timeout 180
 ```
 
-Or set a global default in `~/.gptengage/config.json`:
+### Plugin not detected
 
-```json
-{
-  "defaultTimeout": 120
-}
-```
-
-### Sessions not persisting
-
-Check that `~/.gptengage/sessions/` exists and is writable:
+Verify the plugin file syntax:
 
 ```bash
-ls -la ~/.gptengage/
-# Should show: sessions/ (directory)
+gptengage plugin validate ~/.gptengage/plugins/myplugin.toml
 ```
 
-### Debate incomplete (some CLIs missing)
-
-GPT Engage skips unavailable CLIs and continues with others. Ensure at least one CLI is installed:
+Check that the plugin command exists:
 
 ```bash
-gptengage status
+which <command-name>
 ```
-
-## Configuration
-
-GPT Engage configuration is stored in `~/.gptengage/config.json`:
-
-```json
-{
-  "defaultTimeout": 120,
-  "defaultDebateRounds": 3,
-  "clis": {
-    "claude": {
-      "command": "claude",
-      "invokeArgs": ["-p", "--tools", "Read", "--allowed-tools", "Read"],
-      "detected": true
-    },
-    "codex": {
-      "command": "codex",
-      "invokeArgs": ["exec", "--sandbox", "read-only", "--cd", "."],
-      "detected": true
-    },
-    "gemini": {
-      "command": "gemini",
-      "invokeArgs": ["--sandbox", "--include-directories", "."],
-      "detected": false
-    }
-  }
-}
-```
-
-You can modify timeouts or add custom CLIs by editing this file.
-
-## Security Considerations
-
-- **No API Keys Stored**: GPT Engage doesn't store or manage API keys—use the underlying CLI tools' authentication
-- **Local Storage Only**: All sessions are stored locally in `~/.gptengage/`—nothing is sent to external servers
-- **Subprocess Isolation**: Each CLI invocation is a fresh process with no state leakage
-- **Prompt Visibility**: Session prompts include full conversation history—be mindful of sensitive information
-- **Read-Only by Default**: Use `--write` to opt into write access within the current directory
-
-## Performance Tips
-
-- **Parallel Debates**: All CLIs run simultaneously during debates, so debate time is determined by the slowest CLI
-- **Session Reuse**: Use sessions for related queries to maintain context and reduce redundant explanations
-- **Custom Timeouts**: Slow CLIs (like Gemini) benefit from higher timeouts to avoid false timeouts
 
 ## Development
 
 ### Building from Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/rahulrajaram/gptengage
 cd gptengage
-
-# Build in release mode
 cargo build --release
-
-# Binary is at: target/release/gptengage
-
-# Run tests (if available)
 cargo test
-
-# Install to ~/.local/bin
-./install.sh
 ```
 
 ### Project Structure
 
 ```
 src/
-├── main.rs                 # CLI entry point
-├── lib.rs                  # Library root
-├── cli.rs                  # CLI argument parsing
-├── commands/
-│   ├── mod.rs
-│   ├── debate.rs
-│   ├── invoke.rs
-│   ├── session.rs
-│   └── status.rs
-├── config/
-│   └── mod.rs
-├── invokers/
-│   ├── mod.rs
-│   ├── base.rs
-│   ├── claude.rs
-│   ├── codex.rs
-│   └── gemini.rs
-├── orchestrator/
-│   ├── mod.rs
-│   └── debate.rs
-├── session/
-│   └── mod.rs
-└── utils/
-    └── mod.rs
+├── main.rs           # Entry point
+├── lib.rs            # Library root
+├── cli.rs            # Argument parsing
+├── commands/         # Command implementations
+├── invokers/         # CLI invokers
+├── orchestrator/     # Debate orchestration
+├── plugins/          # Plugin system
+├── templates/        # Template system
+├── session/          # Session management
+└── utils/            # Utilities including stdin handling
 ```
 
 ### Running Tests
@@ -838,35 +996,10 @@ src/
 cargo test
 ```
 
-## Contributing
-
-Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
 ## License
 
-MIT License - see LICENSE file for details
+MIT License. See LICENSE file.
 
 ## Support
 
-- **Issues**: Report bugs at [GitHub Issues](https://github.com/rahulrajaram/gptengage/issues)
-- **Documentation**: Full docs in [docs/](docs/) directory
-- **Examples**: See [docs/EXAMPLES.md](docs/EXAMPLES.md) for more use cases
-
-## Roadmap
-
-- [ ] Support for additional LLM CLIs (Llama, Mistral, etc.)
-- [ ] Response caching for identical prompts
-- [ ] Debate synthesis and conclusion generation
-- [ ] Web-based session viewer
-- [ ] Debate result export (PDF, HTML)
-- [ ] Plugin system for custom CLIs
-
-## Related Projects
-
-- [Claude Code](https://claude.com/claude-code) - Claude's official CLI
-- [Codex CLI](https://github.com/openai/codex-cli) - OpenAI's Codex command-line interface
-- [Gemini CLI](https://ai.google.dev/docs/gemini_cli) - Google's Gemini command-line tool
-
----
-
-Made with ❤️ for the open source community
+Report issues at https://github.com/rahulrajaram/gptengage/issues

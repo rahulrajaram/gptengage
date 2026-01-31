@@ -1,7 +1,10 @@
 //! Debate command - Multi-AI debate orchestration
 
-use crate::invokers::AccessMode;
+use crate::cli::StdinMode;
+use crate::invokers::{is_valid_cli, AccessMode};
 use crate::orchestrator::{AgentFile, DebateOrchestrator, Participant};
+use crate::templates::TemplateManager;
+use crate::utils::stdin::{format_piped_context, read_stdin_if_piped};
 
 /// Debate configuration options
 pub struct DebateOptions {
@@ -10,10 +13,14 @@ pub struct DebateOptions {
     pub instances: Option<usize>,
     pub participants: Option<String>,
     pub agent_file: Option<String>,
-    pub rounds: usize,
+    pub template: Option<String>,
+    pub rounds: Option<usize>,
     pub output: String,
     pub timeout: u64,
     pub access_mode: AccessMode,
+    pub stdin_as: StdinMode,
+    pub synthesize: bool,
+    pub synthesizer: String,
 }
 
 /// Parse participants from format "cli:persona,cli:persona" or "cli,cli"
@@ -56,20 +63,60 @@ fn parse_participants(participants_str: &str) -> anyhow::Result<Vec<Participant>
 }
 
 /// Run a debate between specified participants or default CLIs
-pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
+pub async fn run_debate(mut options: DebateOptions) -> anyhow::Result<()> {
+    // Handle stdin input based on mode
+    if let Some(stdin_content) = read_stdin_if_piped() {
+        match options.stdin_as {
+            StdinMode::Auto => {
+                if options.topic.is_empty() {
+                    // No topic provided, use stdin as topic
+                    options.topic = stdin_content;
+                } else {
+                    // Topic provided, prepend stdin as context
+                    options.topic = format!(
+                        "{}\n\n{}",
+                        format_piped_context(&stdin_content),
+                        options.topic
+                    );
+                }
+            }
+            StdinMode::Context => {
+                // Always prepend stdin as context
+                options.topic = format!(
+                    "{}\n\n{}",
+                    format_piped_context(&stdin_content),
+                    options.topic
+                );
+            }
+            StdinMode::Ignore => {
+                // Do nothing with stdin
+            }
+        }
+    }
+
+    // Validate that topic is not empty
+    if options.topic.is_empty() {
+        return Err(anyhow::anyhow!(
+            "Topic is required. Provide as argument or pipe via stdin."
+        ));
+    }
+
     println!("GPT ENGAGE DEBATE");
     println!("Topic: {}", options.topic);
+
+    // Default rounds if not specified
+    let default_rounds = 3;
 
     // Parse participants from various sources
     let result = if let Some(agent_cli) = options.agent {
         // Multi-instance mode: create N instances of the same CLI
         let num_instances = options.instances.unwrap_or(3);
+        let rounds = options.rounds.unwrap_or(default_rounds);
 
-        // Validate CLI name
-        let valid_clis = ["claude", "codex", "gemini"];
-        if !valid_clis.contains(&agent_cli.to_lowercase().as_str()) {
+        // Validate CLI name (built-in or plugin)
+        if !is_valid_cli(&agent_cli) {
             return Err(anyhow::anyhow!(
-                "Invalid CLI '{}'. Must be one of: claude, codex, gemini",
+                "Invalid CLI '{}'. Must be a built-in CLI (claude, codex, gemini) or an installed plugin.",
                 agent_cli
             ));
         }
@@ -89,7 +136,44 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
         DebateOrchestrator::run_debate_with_participants(
             &options.topic,
             participants,
-            options.rounds,
+            rounds,
+            options.timeout,
+            options.access_mode,
+        )
+        .await?
+    } else if let Some(template_name) = options.template {
+        // Load and use template
+        let template_manager = TemplateManager::new()?;
+        let template = template_manager.get_template(&template_name).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Template '{}' not found. Use 'gptengage template list' to see available templates.",
+                template_name
+            )
+        })?;
+
+        // Use template default rounds unless overridden
+        let rounds = options.rounds.unwrap_or(template.default_rounds);
+
+        // Apply template context to topic
+        let topic = template.apply_context(&options.topic);
+
+        // Convert template participants to debate participants
+        let participants = template.to_participants();
+
+        println!(
+            "Using template: {} ({})",
+            template.name, template.description
+        );
+        println!("Participants:");
+        for p in &participants {
+            println!("  - {}", p.display_name());
+        }
+        println!();
+
+        DebateOrchestrator::run_debate_with_participants(
+            &topic,
+            participants,
+            rounds,
             options.timeout,
             options.access_mode,
         )
@@ -98,6 +182,7 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
         // Load and validate agent file
         let agent_file = AgentFile::load(&agent_file)?;
         let participants = agent_file.to_participants();
+        let rounds = options.rounds.unwrap_or(default_rounds);
 
         println!("Loaded {} agent(s) from file:", participants.len());
         for p in &participants {
@@ -108,13 +193,15 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
         DebateOrchestrator::run_debate_with_participants(
             &options.topic,
             participants,
-            options.rounds,
+            rounds,
             options.timeout,
             options.access_mode,
         )
         .await?
     } else if let Some(participants_str) = options.participants {
         let participants = parse_participants(&participants_str)?;
+        let rounds = options.rounds.unwrap_or(default_rounds);
+
         println!("Participants:");
         for p in &participants {
             println!("  - {}", p.display_name());
@@ -123,22 +210,32 @@ pub async fn run_debate(options: DebateOptions) -> anyhow::Result<()> {
         DebateOrchestrator::run_debate_with_participants(
             &options.topic,
             participants,
-            options.rounds,
+            rounds,
             options.timeout,
             options.access_mode,
         )
         .await?
     } else {
+        let rounds = options.rounds.unwrap_or(default_rounds);
+
         println!("Using default participants: Claude, Codex, Gemini");
         println!();
-        DebateOrchestrator::run_debate(
-            &options.topic,
-            options.rounds,
+        DebateOrchestrator::run_debate(&options.topic, rounds, options.timeout, options.access_mode)
+            .await?
+    };
+
+    // Generate synthesis if requested
+    let mut result = result;
+    if options.synthesize {
+        let synthesis = DebateOrchestrator::generate_synthesis(
+            &result,
+            &options.synthesizer,
             options.timeout,
             options.access_mode,
         )
-        .await?
-    };
+        .await?;
+        result.synthesis = Some(synthesis);
+    }
 
     // Output results based on format
     match options.output.as_str() {
@@ -176,7 +273,51 @@ fn print_text(result: &crate::orchestrator::DebateResult) -> anyhow::Result<()> 
         result.rounds.len(),
         result.rounds.first().map(|r| r.len()).unwrap_or(0)
     );
-    println!("Tip: Use --output json for machine-readable output");
+
+    // Print synthesis if present
+    if let Some(ref synthesis) = result.synthesis {
+        println!();
+        println!("────────────────────────────────────────");
+        println!("SYNTHESIS");
+        println!("────────────────────────────────────────");
+        println!();
+        println!("Summary:");
+        println!("  {}", synthesis.summary);
+        println!();
+
+        if !synthesis.consensus_points.is_empty() {
+            println!("Consensus:");
+            for point in &synthesis.consensus_points {
+                println!("  • {}", point);
+            }
+            println!();
+        }
+
+        if !synthesis.disagreement_points.is_empty() {
+            println!("Disagreements:");
+            for point in &synthesis.disagreement_points {
+                println!("  • {}", point);
+            }
+            println!();
+        }
+
+        if !synthesis.key_insights.is_empty() {
+            println!("Key Insights:");
+            for insight in &synthesis.key_insights {
+                println!("  • {}", insight);
+            }
+            println!();
+        }
+
+        if let Some(ref recommendation) = synthesis.recommendation {
+            println!("Recommendation:");
+            println!("  {}", recommendation);
+            println!();
+        }
+    } else {
+        println!("Tip: Use --output json for machine-readable output");
+    }
+
     Ok(())
 }
 
@@ -192,6 +333,50 @@ fn print_markdown(result: &crate::orchestrator::DebateResult) -> anyhow::Result<
             println!("### {}", response.display_name());
             println!();
             println!("{}", response.response);
+            println!();
+        }
+    }
+
+    // Print synthesis if present
+    if let Some(ref synthesis) = result.synthesis {
+        println!("## Synthesis");
+        println!();
+        println!("### Summary");
+        println!();
+        println!("{}", synthesis.summary);
+        println!();
+
+        if !synthesis.consensus_points.is_empty() {
+            println!("### Consensus");
+            println!();
+            for point in &synthesis.consensus_points {
+                println!("- {}", point);
+            }
+            println!();
+        }
+
+        if !synthesis.disagreement_points.is_empty() {
+            println!("### Disagreements");
+            println!();
+            for point in &synthesis.disagreement_points {
+                println!("- {}", point);
+            }
+            println!();
+        }
+
+        if !synthesis.key_insights.is_empty() {
+            println!("### Key Insights");
+            println!();
+            for insight in &synthesis.key_insights {
+                println!("- {}", insight);
+            }
+            println!();
+        }
+
+        if let Some(ref recommendation) = synthesis.recommendation {
+            println!("### Recommendation");
+            println!();
+            println!("{}", recommendation);
             println!();
         }
     }

@@ -21,5 +21,8 @@ Cargo.lock
 # TruffleHog temporary files
 .trufflehog_scan_list.tmp
 
+# Local planning documents
+IMPLEMENTATION_PLAN.md
+
 # Editor and system files
 .DS_Store

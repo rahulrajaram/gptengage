@@ -1,6 +1,6 @@
 //! Debate orchestration - Run multi-round debates
 
-use crate::invokers::{AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker};
+use crate::invokers::{get_invoker, AccessMode};
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
@@ -182,12 +182,33 @@ impl RoundResponse {
     }
 }
 
+/// Synthesis of a debate
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Synthesis {
+    /// Brief summary of the debate
+    pub summary: String,
+    /// Points where participants agreed
+    #[serde(default)]
+    pub consensus_points: Vec<String>,
+    /// Points where participants disagreed
+    #[serde(default)]
+    pub disagreement_points: Vec<String>,
+    /// Key insights that emerged
+    #[serde(default)]
+    pub key_insights: Vec<String>,
+    /// Final recommendation (if applicable)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recommendation: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DebateResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gptengage_version: Option<String>,
     pub topic: String,
     pub rounds: Vec<Vec<RoundResponse>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub synthesis: Option<Synthesis>,
 }
 
 impl DebateOrchestrator {
@@ -234,19 +255,16 @@ impl DebateOrchestrator {
                 let ctx = participant_clone.build_prompt_with_persona(&base_context);
 
                 let task = task::spawn(async move {
-                    let invoker: Box<dyn Invoker> =
-                        match participant_clone.cli.to_lowercase().as_str() {
-                            "claude" => Box::new(ClaudeInvoker::new()),
-                            "codex" => Box::new(CodexInvoker::new()),
-                            "gemini" => Box::new(GeminiInvoker::new()),
-                            _ => {
-                                eprintln!(
-                                    "Unknown CLI '{}', skipping participant",
-                                    participant_clone.cli
-                                );
-                                return None;
-                            }
-                        };
+                    let invoker = match get_invoker(&participant_clone.cli) {
+                        Some(inv) => inv,
+                        None => {
+                            eprintln!(
+                                "Unknown CLI '{}', skipping participant",
+                                participant_clone.cli
+                            );
+                            return None;
+                        }
+                    };
 
                     if !invoker.is_available() {
                         eprintln!(
@@ -297,6 +315,105 @@ impl DebateOrchestrator {
             gptengage_version: Some(env!("CARGO_PKG_VERSION").to_string()),
             topic: topic.to_string(),
             rounds,
+            synthesis: None,
+        })
+    }
+
+    /// Generate a synthesis of a debate result
+    pub async fn generate_synthesis(
+        result: &DebateResult,
+        synthesizer_cli: &str,
+        timeout: u64,
+        access_mode: AccessMode,
+    ) -> anyhow::Result<Synthesis> {
+        // Build debate transcript for synthesis
+        let mut transcript = String::new();
+        for (round_num, round_responses) in result.rounds.iter().enumerate() {
+            transcript.push_str(&format!("ROUND {}:\n", round_num + 1));
+            for response in round_responses {
+                transcript.push_str(&format!(
+                    "{}:\n{}\n\n",
+                    response.display_name(),
+                    response.response
+                ));
+            }
+            transcript.push('\n');
+        }
+
+        let synthesis_prompt = format!(
+            r#"[SYNTHESIS REQUEST]
+You are synthesizing a multi-participant debate.
+
+TOPIC: {}
+
+DEBATE TRANSCRIPT:
+{}
+
+Generate a structured synthesis with:
+1. A 2-3 sentence summary of the debate
+2. Points where participants reached consensus
+3. Points where participants disagreed
+4. Key insights that emerged
+5. A recommendation (if applicable)
+
+Respond with JSON in this exact format:
+{{
+  "summary": "...",
+  "consensus_points": ["...", "..."],
+  "disagreement_points": ["...", "..."],
+  "key_insights": ["...", "..."],
+  "recommendation": "..." or null
+}}
+[/SYNTHESIS REQUEST]"#,
+            result.topic, transcript
+        );
+
+        // Get the synthesizer invoker
+        let invoker = get_invoker(synthesizer_cli).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Synthesizer CLI '{}' not found. Use claude, codex, gemini, or an installed plugin.",
+                synthesizer_cli
+            )
+        })?;
+
+        if !invoker.is_available() {
+            return Err(anyhow::anyhow!(
+                "Synthesizer CLI '{}' is not available in PATH.",
+                synthesizer_cli
+            ));
+        }
+
+        eprintln!("Generating synthesis with {}...", synthesizer_cli);
+        let response = invoker
+            .invoke(&synthesis_prompt, timeout, access_mode)
+            .await?;
+
+        // Parse the JSON from the response
+        Self::parse_synthesis_response(&response)
+    }
+
+    /// Parse synthesis JSON from LLM response
+    fn parse_synthesis_response(response: &str) -> anyhow::Result<Synthesis> {
+        // Try to extract JSON from the response (it may be wrapped in markdown or text)
+        let json_start = response.find('{');
+        let json_end = response.rfind('}');
+
+        if let (Some(start), Some(end)) = (json_start, json_end) {
+            if start < end {
+                let json_str = &response[start..=end];
+                if let Ok(synthesis) = serde_json::from_str::<Synthesis>(json_str) {
+                    return Ok(synthesis);
+                }
+            }
+        }
+
+        // If JSON parsing fails, create a basic synthesis from the text
+        Ok(Synthesis {
+            summary: response.trim().to_string(),
+            consensus_points: vec![],
+            disagreement_points: vec![],
+            key_insights: vec![],
+            recommendation: None,
         })
     }
 
@@ -382,6 +499,7 @@ mod tests {
                     response: "Go is simpler".to_string(),
                 },
             ]],
+            synthesis: None,
         };
 
         assert_eq!(result.topic, "Should we use Rust?");
@@ -425,6 +543,7 @@ mod tests {
             gptengage_version: None,
             topic: "Test Topic".to_string(),
             rounds,
+            synthesis: None,
         };
 
         assert_eq!(result.rounds.len(), 2);
@@ -450,6 +569,7 @@ mod tests {
                     response: "Spaces are standard".to_string(),
                 },
             ]],
+            synthesis: None,
         };
 
         let json = serde_json::to_string(&result).unwrap();
@@ -466,6 +586,7 @@ mod tests {
             gptengage_version: None,
             topic: "Empty debate".to_string(),
             rounds: vec![],
+            synthesis: None,
         };
 
         assert_eq!(result.rounds.len(), 0);
@@ -514,6 +635,7 @@ mod tests {
                 persona: None,
                 response: "Response with unicode: émojis: 🎉".to_string(),
             }]],
+            synthesis: None,
         };
 
         let json = serde_json::to_string(&result).unwrap();
