@@ -9,6 +9,7 @@ use crate::utils::stdin::{format_piped_context, read_stdin_if_piped};
 #[allow(clippy::too_many_arguments)]
 pub async fn run_invoke(
     cli: String,
+    model: Option<String>,
     mut prompt: String,
     session_name: Option<String>,
     topic: Option<String>,
@@ -97,8 +98,14 @@ pub async fn run_invoke(
     }
 
     // Invoke the CLI
-    eprintln!("Invoking {}...", cli);
-    let response = invoker.invoke(&full_prompt, timeout, access_mode).await?;
+    let cli_display = match &model {
+        Some(m) => format!("{}:{}", cli, m),
+        None => cli.clone(),
+    };
+    eprintln!("Invoking {}...", cli_display);
+    let response = invoker
+        .invoke(&full_prompt, timeout, access_mode, model.as_deref())
+        .await?;
 
     // Print response
     println!("{}", response);

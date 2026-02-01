@@ -14,15 +14,28 @@ impl Invoker for CodexInvoker {
         prompt: &str,
         timeout: u64,
         access_mode: AccessMode,
+        model: Option<&str>,
     ) -> anyhow::Result<String> {
-        let args = match access_mode {
-            AccessMode::ReadOnly => &["exec", "--sandbox", "read-only", "--cd", "."][..],
+        let mut args: Vec<&str> = vec!["exec"];
+
+        // Add model if specified
+        // Example models: gpt-4o, gpt-4.1, o3
+        if let Some(m) = model {
+            args.push("--model");
+            args.push(m);
+        }
+
+        // Add access mode flags
+        match access_mode {
+            AccessMode::ReadOnly => {
+                args.extend_from_slice(&["--sandbox", "read-only", "--cd", "."]);
+            }
             AccessMode::WorkspaceWrite => {
-                &["exec", "--sandbox", "workspace-write", "--cd", "."][..]
+                args.extend_from_slice(&["--sandbox", "workspace-write", "--cd", "."]);
             }
         };
 
-        execute_command("codex", args, prompt, timeout).await
+        execute_command("codex", &args, prompt, timeout).await
     }
 
     fn name(&self) -> &str {

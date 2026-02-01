@@ -238,6 +238,7 @@ impl DebateTemplate {
             .map(|p| {
                 let agent_def = crate::orchestrator::AgentDefinition {
                     cli: p.cli.clone(),
+                    model: None,
                     persona: p.persona.clone(),
                     instructions: p.instructions.clone(),
                     expertise: p.expertise.clone(),

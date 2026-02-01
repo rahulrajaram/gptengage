@@ -27,9 +27,19 @@ impl Invoker for PluginInvoker {
         prompt: &str,
         timeout: u64,
         access_mode: AccessMode,
+        model: Option<&str>,
     ) -> anyhow::Result<String> {
         // Build argument list
         let mut args: Vec<String> = self.config.invoke.base_args.clone();
+
+        // Add model if specified and plugin supports it
+        if let Some(m) = model {
+            if let Some(ref model_arg) = self.config.invoke.model_arg {
+                args.push(model_arg.clone());
+                args.push(m.to_string());
+            }
+            // If no model_arg configured, model is silently ignored
+        }
 
         // Add access mode arguments
         match access_mode {
@@ -93,6 +103,7 @@ mod tests {
                 base_args: vec![],
                 prompt_mode: PromptMode::ArgLast,
                 prompt_arg: None,
+                model_arg: None,
             },
             access: AccessConfig {
                 readonly_args: vec![],
@@ -126,7 +137,7 @@ mod tests {
         let invoker = PluginInvoker::new(config);
 
         let result = invoker
-            .invoke("hello world", 30, AccessMode::ReadOnly)
+            .invoke("hello world", 30, AccessMode::ReadOnly, None)
             .await;
 
         assert!(result.is_ok());

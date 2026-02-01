@@ -43,6 +43,7 @@ pub trait Invoker: Send + Sync {
         prompt: &str,
         timeout: u64,
         access_mode: AccessMode,
+        model: Option<&str>,
     ) -> anyhow::Result<String>;
 
     /// Get the CLI name

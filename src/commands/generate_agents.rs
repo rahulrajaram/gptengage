@@ -47,7 +47,7 @@ pub async fn run_generate_agents(
     let prompt = build_generation_prompt(&topic, &role_list);
 
     println!("Using {} to generate agent definitions...", use_cli);
-    let response = invoker.invoke(&prompt, timeout, access_mode).await?;
+    let response = invoker.invoke(&prompt, timeout, access_mode, None).await?;
 
     // Parse the response as JSON
     let agent_definitions = parse_agent_response(&response, &role_list)?;

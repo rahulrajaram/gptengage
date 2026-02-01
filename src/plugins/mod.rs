@@ -39,6 +39,8 @@ pub struct InvokeConfig {
     pub prompt_mode: PromptMode,
     /// Argument flag for prompt (used with Arg mode)
     pub prompt_arg: Option<String>,
+    /// Argument flag for model selection (e.g., "--model")
+    pub model_arg: Option<String>,
 }
 
 /// How the prompt is passed to the CLI

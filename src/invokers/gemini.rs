@@ -14,19 +14,34 @@ impl Invoker for GeminiInvoker {
         prompt: &str,
         timeout: u64,
         access_mode: AccessMode,
+        model: Option<&str>,
     ) -> anyhow::Result<String> {
-        let args = match access_mode {
-            AccessMode::ReadOnly => &["--sandbox", "--include-directories", "."][..],
-            AccessMode::WorkspaceWrite => &[
-                "--sandbox",
-                "--include-directories",
-                ".",
-                "--approval-mode",
-                "auto_edit",
-            ][..],
+        let mut args: Vec<&str> = Vec::new();
+
+        // Add model if specified
+        // Example models: gemini-2.5-pro, gemini-2.0-flash
+        if let Some(m) = model {
+            args.push("--model");
+            args.push(m);
+        }
+
+        // Add access mode flags
+        match access_mode {
+            AccessMode::ReadOnly => {
+                args.extend_from_slice(&["--sandbox", "--include-directories", "."]);
+            }
+            AccessMode::WorkspaceWrite => {
+                args.extend_from_slice(&[
+                    "--sandbox",
+                    "--include-directories",
+                    ".",
+                    "--approval-mode",
+                    "auto_edit",
+                ]);
+            }
         };
 
-        execute_command("gemini", args, prompt, timeout).await
+        execute_command("gemini", &args, prompt, timeout).await
     }
 
     fn name(&self) -> &str {

@@ -10,6 +10,8 @@ pub struct DebateOrchestrator;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentDefinition {
     pub cli: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     pub persona: String,
     pub instructions: String,
     #[serde(default)]
@@ -47,6 +49,7 @@ impl AgentDefinition {
     pub fn to_participant(&self) -> Participant {
         Participant {
             cli: self.cli.clone(),
+            model: self.model.clone(),
             persona: Some(self.persona.clone()),
             agent_definition: Some(self.clone()),
         }
@@ -112,6 +115,8 @@ impl AgentFile {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Participant {
     pub cli: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     pub persona: Option<String>,
     #[serde(skip)]
     pub agent_definition: Option<AgentDefinition>,
@@ -121,15 +126,29 @@ impl Participant {
     pub fn new(cli: String, persona: Option<String>) -> Self {
         Self {
             cli,
+            model: None,
+            persona,
+            agent_definition: None,
+        }
+    }
+
+    pub fn with_model(cli: String, model: Option<String>, persona: Option<String>) -> Self {
+        Self {
+            cli,
+            model,
             persona,
             agent_definition: None,
         }
     }
 
     pub fn display_name(&self) -> String {
-        match &self.persona {
-            Some(p) => format!("{} ({})", self.cli, p),
+        let cli_with_model = match &self.model {
+            Some(m) => format!("{}:{}", self.cli, m),
             None => self.cli.clone(),
+        };
+        match &self.persona {
+            Some(p) => format!("{} ({})", cli_with_model, p),
+            None => cli_with_model,
         }
     }
 
@@ -274,7 +293,15 @@ impl DebateOrchestrator {
                         return None;
                     }
 
-                    match invoker.invoke(&ctx, timeout, access_mode).await {
+                    match invoker
+                        .invoke(
+                            &ctx,
+                            timeout,
+                            access_mode,
+                            participant_clone.model.as_deref(),
+                        )
+                        .await
+                    {
                         Ok(response) => Some(RoundResponse {
                             cli: participant_clone.cli.clone(),
                             persona: participant_clone.persona.clone(),
@@ -385,7 +412,7 @@ Respond with JSON in this exact format:
 
         eprintln!("Generating synthesis with {}...", synthesizer_cli);
         let response = invoker
-            .invoke(&synthesis_prompt, timeout, access_mode)
+            .invoke(&synthesis_prompt, timeout, access_mode, None)
             .await?;
 
         // Parse the JSON from the response

@@ -11,6 +11,7 @@ pub struct DebateOptions {
     pub topic: String,
     pub agent: Option<String>,
     pub instances: Option<usize>,
+    pub model: Option<String>,
     pub participants: Option<String>,
     pub agent_file: Option<String>,
     pub template: Option<String>,
@@ -23,7 +24,7 @@ pub struct DebateOptions {
     pub synthesizer: String,
 }
 
-/// Parse participants from format "cli:persona,cli:persona" or "cli,cli"
+/// Parse participants from format "cli:persona,cli:persona" or "cli:persona:model"
 fn parse_participants(participants_str: &str) -> anyhow::Result<Vec<Participant>> {
     let mut participants = Vec::new();
 
@@ -46,9 +47,17 @@ fn parse_participants(participants_str: &str) -> anyhow::Result<Vec<Participant>
                     Some(parts[1].to_string()),
                 ));
             }
+            3 => {
+                // CLI:persona:model format
+                participants.push(Participant::with_model(
+                    parts[0].to_string(),
+                    Some(parts[2].to_string()),
+                    Some(parts[1].to_string()),
+                ));
+            }
             _ => {
                 return Err(anyhow::anyhow!(
-                    "Invalid participant format '{}'. Expected 'cli' or 'cli:persona'",
+                    "Invalid participant format '{}'. Expected 'cli', 'cli:persona', or 'cli:persona:model'",
                     part
                 ));
             }
@@ -121,16 +130,22 @@ pub async fn run_debate(mut options: DebateOptions) -> anyhow::Result<()> {
             ));
         }
 
+        let model_display = options
+            .model
+            .as_ref()
+            .map(|m| format!(":{}", m))
+            .unwrap_or_default();
         println!(
-            "Multi-instance mode: {} {} instance(s)",
-            num_instances, agent_cli
+            "Multi-instance mode: {} {}{} instance(s)",
+            num_instances, agent_cli, model_display
         );
         println!("(Leveraging LLM nondeterminism and debate dynamics)");
         println!();
 
-        // Create N participants with the same CLI
+        // Create N participants with the same CLI and model
+        let model = options.model.clone();
         let participants: Vec<Participant> = (0..num_instances)
-            .map(|_| Participant::new(agent_cli.clone(), None))
+            .map(|_| Participant::with_model(agent_cli.clone(), model.clone(), None))
             .collect();
 
         DebateOrchestrator::run_debate_with_participants(

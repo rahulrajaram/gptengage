@@ -14,15 +14,28 @@ impl Invoker for ClaudeInvoker {
         prompt: &str,
         timeout: u64,
         access_mode: AccessMode,
+        model: Option<&str>,
     ) -> anyhow::Result<String> {
-        let args = match access_mode {
-            AccessMode::ReadOnly => &["-p", "--tools", "Read", "--allowed-tools", "Read"][..],
+        let mut args: Vec<&str> = vec!["-p"];
+
+        // Add model if specified
+        // Example models: claude-sonnet-4-20250514, claude-opus-4-20250514
+        if let Some(m) = model {
+            args.push("--model");
+            args.push(m);
+        }
+
+        // Add access mode flags
+        match access_mode {
+            AccessMode::ReadOnly => {
+                args.extend_from_slice(&["--tools", "Read", "--allowed-tools", "Read"]);
+            }
             AccessMode::WorkspaceWrite => {
-                &["-p", "--tools", "Read,Edit", "--allowed-tools", "Read,Edit"][..]
+                args.extend_from_slice(&["--tools", "Read,Edit", "--allowed-tools", "Read,Edit"]);
             }
         };
 
-        execute_command("claude", args, prompt, timeout).await
+        execute_command("claude", &args, prompt, timeout).await
     }
 
     fn name(&self) -> &str {

@@ -108,12 +108,28 @@ pub enum Commands {
         #[arg(long, requires = "agent", verbatim_doc_comment)]
         instances: Option<usize>,
 
-        /// Participants in format: cli:persona,cli:persona
+        /// Model to use when --agent is specified
         ///
-        /// Format: "cli:persona,cli:persona,..."
+        /// Specifies which model to use for all instances. If not provided,
+        /// the CLI uses its default model.
+        ///
+        /// Examples:
+        ///   --agent claude --model claude-sonnet-4-20250514
+        ///   --agent codex --model gpt-4o
+        ///   --agent gemini --model gemini-2.5-pro
+        ///
+        /// Requires --agent to be specified
+        #[arg(long, short = 'm', requires = "agent", verbatim_doc_comment)]
+        model: Option<String>,
+
+        /// Participants with optional persona and model
+        ///
+        /// Format: "cli:persona,cli:persona,..." or "cli:persona:model,..."
+        ///
         /// Examples:
         ///   -p "claude:CEO,claude:Architect,codex:PM"
         ///   -p "claude:Security Expert,gemini:UX Designer"
+        ///   -p "claude:CEO:claude-sonnet-4-20250514,codex:CTO:gpt-4o"
         ///
         /// Cannot be used with --agent-file or --agent
         #[arg(long, short = 'p', conflicts_with_all = ["agent_file", "agent"], verbatim_doc_comment)]
@@ -208,6 +224,11 @@ pub enum Commands {
     ///   # Simple invocation
     ///   gptengage invoke claude "Explain quantum computing"
     ///
+    ///   # With specific model
+    ///   gptengage invoke claude "Explain this" --model claude-sonnet-4-20250514
+    ///   gptengage invoke codex "Review code" --model gpt-4o
+    ///   gptengage invoke gemini "Analyze" --model gemini-2.5-pro
+    ///
     ///   # With session (maintains conversation history)
     ///   gptengage invoke claude "Review my auth code" --session auth-review
     ///   gptengage invoke claude "Fix the JWT bug" --session auth-review
@@ -219,7 +240,7 @@ pub enum Commands {
     ///   gptengage invoke gemini "Complex analysis" --session analysis --topic "Performance Review" --timeout 180
     #[command(verbatim_doc_comment)]
     Invoke {
-        /// Which CLI to invoke: claude, codex, or gemini
+        /// Which CLI to invoke: claude, codex, gemini, or a plugin name
         cli: String,
 
         /// The prompt to send (optional if piping via stdin)
@@ -228,6 +249,18 @@ pub enum Commands {
         /// Example: echo "question" | gptengage invoke claude
         #[arg(default_value = "", verbatim_doc_comment)]
         prompt: String,
+
+        /// Model to use for the CLI
+        ///
+        /// Specifies which model the CLI should use. If not provided,
+        /// the CLI uses its default model.
+        ///
+        /// Examples:
+        ///   --model claude-sonnet-4-20250514   (Claude)
+        ///   --model gpt-4o                      (Codex)
+        ///   --model gemini-2.5-pro              (Gemini)
+        #[arg(long, short = 'm', verbatim_doc_comment)]
+        model: Option<String>,
 
         /// Session name for persistent conversation
         ///
@@ -493,6 +526,7 @@ impl Cli {
                 topic,
                 agent,
                 instances,
+                model,
                 participants,
                 agent_file,
                 template,
@@ -508,6 +542,7 @@ impl Cli {
                     topic,
                     agent,
                     instances,
+                    model,
                     participants,
                     agent_file,
                     template,
@@ -525,6 +560,7 @@ impl Cli {
             Commands::Invoke {
                 cli,
                 prompt,
+                model,
                 session,
                 topic,
                 context_file,
@@ -534,6 +570,7 @@ impl Cli {
             } => {
                 invoke::run_invoke(
                     cli,
+                    model,
                     prompt,
                     session,
                     topic,
