@@ -1,22 +1,22 @@
-# TruffleHog exclusion patterns
+# TruffleHog exclusion patterns (regex syntax)
 # Files and directories to exclude from secret scanning
 
 # Build artifacts
 target/
-*.rs.bk
+\.rs\.bk$
 
 # Dependencies
-.cargo/
+\.cargo/
 
 # IDE and editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+\.vscode/
+\.idea/
+\.swp$
+\.swo$
+~$
 
 # Git
-.git/
+\.git/
 
 # Test fixtures (if they contain example secrets)
 tests/fixtures/
@@ -25,8 +25,8 @@ tests/fixtures/
 docs/examples/
 
 # CI/CD
-.github/
+\.github/
 
 # Temporary files
-*.tmp
-.trufflehog_scan_list.tmp
+\.tmp$
+\.trufflehog_scan_list\.tmp$
