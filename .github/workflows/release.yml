@@ -29,7 +29,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           name: Release ${{ github.ref_name }}
           draft: false
@@ -108,13 +108,13 @@ jobs:
 
       - name: Upload Release Asset (Unix)
         if: runner.os != 'Windows'
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ${{ matrix.asset_name }}-${{ needs.create-release.outputs.version }}.tar.gz
 
       - name: Upload Release Asset (Windows)
         if: runner.os == 'Windows'
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ${{ matrix.asset_name }}-${{ needs.create-release.outputs.version }}.zip
 
@@ -142,6 +142,6 @@ jobs:
           cat SHA256SUMS.txt
 
       - name: Upload checksums
-        uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: release-assets/SHA256SUMS.txt
