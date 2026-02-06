@@ -1,7 +1,6 @@
 # Rust build artifacts
 /target/
 **/*.rs.bk
-Cargo.lock
 
 # IDE
 .vscode/
@@ -14,6 +13,12 @@ Cargo.lock
 # Environment
 .env
 .env.local
+
+# Claude Code local config
+.claude/
+
+# Runtime debate output
+agent_reports/
 
 # Session and config files (local to user)
 ~/.gptengage/
