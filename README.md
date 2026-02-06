@@ -20,7 +20,7 @@ GPT Engage solves a specific problem: getting multiple AI perspectives on a sing
 
 ### Prerequisites
 
-GPT Engage requires Rust 1.86 or later and at least one LLM CLI:
+GPT Engage requires at least one LLM CLI:
 
 | CLI | Installation |
 |-----|--------------|
@@ -28,7 +28,34 @@ GPT Engage requires Rust 1.86 or later and at least one LLM CLI:
 | Codex CLI | https://github.com/openai/codex-cli |
 | Gemini CLI | https://ai.google.dev/docs/gemini_cli |
 
-### Build and Install
+### Install from crates.io (recommended)
+
+```bash
+cargo install gptengage
+```
+
+### Install pre-built binary
+
+Download the latest release for your platform:
+
+```bash
+# Linux (x86_64)
+curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-linux-amd64-1.0.0.tar.gz | tar xz -C ~/.local/bin
+
+# macOS (Apple Silicon)
+curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-darwin-arm64-1.0.0.tar.gz | tar xz -C ~/.local/bin
+
+# macOS (Intel)
+curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-darwin-amd64-1.0.0.tar.gz | tar xz -C ~/.local/bin
+```
+
+Then add `~/.local/bin` to your `PATH` if it isn't already:
+
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+### Install from source
 
 Clone the repository and run the installer:
 
@@ -40,7 +67,7 @@ cd gptengage
 
 The installer builds GPT Engage in release mode, copies the binary to `~/.local/bin/gptengage`, and verifies your PATH configuration.
 
-For manual installation:
+Alternatively, build manually:
 
 ```bash
 cargo build --release
@@ -48,7 +75,7 @@ cp target/release/gptengage ~/.local/bin/
 export PATH="$HOME/.local/bin:$PATH"
 ```
 
-Verify the installation:
+### Verify
 
 ```bash
 gptengage status
