@@ -3,8 +3,7 @@
 
 # Build artifacts
 target/
-**/*.rs.bk
-Cargo.lock
+*.rs.bk
 
 # Dependencies
 .cargo/
