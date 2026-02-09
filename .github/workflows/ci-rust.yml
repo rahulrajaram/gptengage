@@ -36,19 +36,19 @@ jobs:
           toolchain: stable
 
       - name: Cache cargo registry
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -119,19 +119,19 @@ jobs:
           toolchain: stable
 
       - name: Cache cargo registry
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: target
           key: ${{ runner.os }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
@@ -193,19 +193,19 @@ jobs:
           echo 'linker = "aarch64-linux-gnu-gcc"' >> ~/.cargo/config.toml
 
       - name: Cache cargo registry
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cargo/registry
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo index
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: ~/.cargo/git
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-git-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Cache cargo build
-        uses: actions/cache@6849a6489940f00c2f30c0fb92c6274307ccb58a # v4.1.2
+        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
         with:
           path: target
           key: ${{ runner.os }}-${{ matrix.target }}-cargo-build-target-${{ hashFiles('**/Cargo.lock') }}
