@@ -12,7 +12,7 @@ name = "gptengage"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.5", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 toml = "0.9"
@@ -24,7 +24,7 @@ libc = "0.2"
 futures = "0.3"
 
 [dev-dependencies]
-tempfile = "3.8"
+tempfile = "3.25"
 
 [profile.release]
 opt-level = 3
