@@ -18,7 +18,7 @@ pub use config::*;
 pub use session::*;
 
 // Re-export key types explicitly to avoid ambiguous glob re-exports
-pub use commands::{debate, generate_agents, invoke, status};
+pub use commands::{debate, generate_agents, ideate, invoke, status};
 pub use invokers::{
     get_invoker, is_valid_cli, AccessMode, ClaudeInvoker, CodexInvoker, GeminiInvoker, Invoker,
 };

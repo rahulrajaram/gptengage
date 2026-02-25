@@ -2,6 +2,7 @@
 
 pub mod debate;
 pub mod generate_agents;
+pub mod ideate;
 pub mod invoke;
 pub mod plugin;
 pub mod session;

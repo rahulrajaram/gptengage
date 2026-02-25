@@ -5,11 +5,11 @@ use clap::{Parser, Subcommand, ValueEnum};
 #[derive(Parser)]
 #[command(name = "gptengage")]
 #[command(
-    about = "Multi-AI CLI Orchestrator - Debate & Invoke across Claude Code, Codex, and Gemini",
-    long_about = "Multi-AI CLI Orchestrator - Debate & Invoke across Claude Code, Codex, and Gemini
+    about = "Multi-AI CLI Orchestrator - Debate, Ideate & Invoke across Claude Code, Codex, and Gemini",
+    long_about = "Multi-AI CLI Orchestrator - Debate, Ideate & Invoke across Claude Code, Codex, and Gemini
 
 gptengage enables orchestration of multiple AI CLI tools (Claude Code, Codex, Gemini)
-for debates, code reviews, and interactive sessions.
+for debates, ideation, code reviews, and interactive sessions.
 
 DEFAULT TIMEOUT:
     120 seconds per CLI invocation. Override with --timeout or config defaultTimeout.
@@ -18,6 +18,7 @@ QUICK START:
     gptengage status                    Check available CLIs
     gptengage invoke claude \"Hello\"     Simple invocation
     gptengage debate \"Topic here\"       Multi-AI debate
+    gptengage ideate \"Seed idea\"        Divergent idea generation
 
 EXAMPLES:
     # Check which AI CLIs are available
@@ -31,6 +32,9 @@ EXAMPLES:
 
     # Run a debate with specific personas
     gptengage debate \"Tech stack\" -p \"claude:CTO,codex:Architect\"
+
+    # Generate a tree of divergent ideas from a seed
+    gptengage ideate \"Build a social app for pet owners\" --sigma 1.5 --select
 
     # Generate agent definitions for programmatic use
     gptengage generate-agents --topic \"API design\" --roles \"Lead,PM\" -o agents.json
@@ -353,6 +357,93 @@ pub enum Commands {
     #[command(subcommand)]
     Config(ConfigCommands),
 
+    /// Generate divergent ideas from a seed (evolutionary ideation)
+    ///
+    /// Uses sigma-based creativity levels to generate a tree of divergent ideas.
+    /// Level 1 produces 3 orthogonal ideas; Level 2 expands each into 3 more.
+    /// Use --select for human-in-the-loop selection of which L1 ideas to expand.
+    ///
+    /// Examples:
+    ///   # Quick brainstorm (depth 1, 3 ideas)
+    ///   gptengage ideate "Build a social app for pet owners" --sigma 1.0 --depth 1
+    ///
+    ///   # Full tree (depth 2, up to 12 ideas)
+    ///   gptengage ideate "Build a social app for pet owners" --sigma 1.5
+    ///
+    ///   # Deep tree (depth 4, 120 ideas)
+    ///   gptengage ideate "AI tutoring platform" --sigma 1.0 --depth 4
+    ///
+    ///   # Extreme creativity with custom sigma
+    ///   gptengage ideate "Marketplace for freelancers" --sigma 2.7
+    ///
+    ///   # Beyond limits with --force
+    ///   gptengage ideate "Space tourism" --sigma 5.0 --depth 7 --force
+    ///
+    ///   # Interactive selection of which L1 ideas to expand
+    ///   gptengage ideate "AI tutoring platform" --sigma 2.0 --select
+    ///
+    ///   # JSON output for programmatic use
+    ///   gptengage ideate "Marketplace for freelancers" --sigma 1.0 --output json
+    ///
+    ///   # Truecolor tree output
+    ///   gptengage ideate "Build an app" --color truecolor
+    #[command(verbatim_doc_comment)]
+    Ideate {
+        /// The seed idea to diverge from
+        #[arg(verbatim_doc_comment)]
+        seed: String,
+
+        /// Creativity level (0.0-3.0). Presets: 0.5 (conservative) | 1.0 (notable) | 1.5 (reimagining) | 2.0 (radical)
+        ///
+        /// Values above 3.0 require --force.
+        #[arg(long, default_value = "1.0", verbatim_doc_comment)]
+        sigma: f32,
+
+        /// Interactively select which L1 ideas to expand to L2
+        #[arg(long, verbatim_doc_comment)]
+        select: bool,
+
+        /// Depth of idea tree (1-5). Each level expands every leaf into 3 sub-ideas.
+        ///
+        /// Values above 5 require --force (exponential cost: 3^depth invocations).
+        #[arg(long, default_value = "2", verbatim_doc_comment)]
+        depth: u8,
+
+        /// Bypass sigma (>3.0) and depth (>5) safety limits
+        #[arg(long, verbatim_doc_comment)]
+        force: bool,
+
+        /// Which CLI to use for generation
+        #[arg(long, default_value = "claude", verbatim_doc_comment)]
+        cli: String,
+
+        /// Output format: text | json
+        #[arg(long, short = 'o', default_value = "text", verbatim_doc_comment)]
+        output: String,
+
+        /// Timeout per CLI invocation in seconds
+        #[arg(long, short = 't', default_value = "120", verbatim_doc_comment)]
+        timeout: u64,
+
+        /// Color mode: auto | truecolor | 256 | none
+        ///
+        /// Controls how the idea tree is colorized:
+        ///   auto      - Detect terminal capabilities (default)
+        ///   truecolor - Force 24-bit RGB colors with background overlays
+        ///   256       - Force 256-color palette
+        ///   none      - Plain text, no ANSI escape codes
+        #[arg(long, default_value = "auto", verbatim_doc_comment)]
+        color: String,
+
+        /// Display output in a scrollable pager (alternate screen)
+        ///
+        /// Opens the rendered idea tree in a built-in pager with keyboard
+        /// navigation: ↑/↓/j/k to scroll, PgUp/PgDn for pages, q to quit.
+        /// Has no effect with --output json.
+        #[arg(long, verbatim_doc_comment)]
+        pager: bool,
+    },
+
     /// Generate agent definitions for debate participants
     ///
     /// Uses AI to create detailed agent definitions with personas, instructions,
@@ -623,6 +714,34 @@ impl Cli {
                     Ok(())
                 }
             },
+
+            Commands::Ideate {
+                seed,
+                sigma,
+                select,
+                depth,
+                cli,
+                output,
+                timeout,
+                color,
+                pager,
+                force,
+            } => {
+                ideate::run_ideate(ideate::IdeateOptions {
+                    seed,
+                    sigma,
+                    select,
+                    depth,
+                    cli,
+                    output,
+                    timeout,
+                    access_mode: AccessMode::ReadOnly,
+                    color,
+                    pager,
+                    force,
+                })
+                .await
+            }
 
             Commands::GenerateAgents {
                 topic,
