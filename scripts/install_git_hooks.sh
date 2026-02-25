@@ -2,36 +2,46 @@
 set -euo pipefail
 
 REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo ".")
-HOOKS_DIR="$REPO_ROOT/.git/hooks"
-SCRIPTS_DIR="$REPO_ROOT/scripts/git-hooks"
+GIT_DIR="$REPO_ROOT/.git"
+COMMITHOOKS="${COMMITHOOKS_DIR:-$HOME/Documents/commithooks}"
 
-echo "Installing Git hooks..."
+echo "Installing commithooks dispatchers..."
 
-# Ensure .git/hooks directory exists
-mkdir -p "$HOOKS_DIR"
-
-# Install pre-commit hook
-if [ -f "$SCRIPTS_DIR/pre-commit" ]; then
-    ln -sf "../../scripts/git-hooks/pre-commit" "$HOOKS_DIR/pre-commit"
-    echo "✅ Installed pre-commit hook"
-else
-    echo "⚠️  pre-commit hook not found at $SCRIPTS_DIR/pre-commit" >&2
+if [ ! -d "$COMMITHOOKS/lib" ]; then
+    echo "Commithooks source not found at $COMMITHOOKS" >&2
+    echo "Set COMMITHOOKS_DIR or clone to ~/Documents/commithooks/" >&2
+    exit 1
 fi
 
-# Install commit-msg hook
-if [ -f "$SCRIPTS_DIR/commit-msg" ]; then
-    ln -sf "../../scripts/git-hooks/commit-msg" "$HOOKS_DIR/commit-msg"
-    echo "✅ Installed commit-msg hook"
-else
-    echo "⚠️  commit-msg hook not found at $SCRIPTS_DIR/commit-msg" >&2
+mkdir -p "$GIT_DIR/hooks"
+
+for hook in pre-commit commit-msg pre-push post-checkout post-merge; do
+    src="$COMMITHOOKS/$hook"
+    if [ -f "$src" ]; then
+        cp "$src" "$GIT_DIR/hooks/$hook"
+        chmod +x "$GIT_DIR/hooks/$hook"
+        echo "  [ok] $hook"
+    fi
+done
+
+rm -rf "${GIT_DIR:?}/lib"
+cp -r "$COMMITHOOKS/lib" "$GIT_DIR/lib"
+echo "  [ok] lib/ ($(ls "$GIT_DIR/lib/" | wc -l) modules)"
+
+# Unset core.hooksPath if set (we use .git/hooks/ directly)
+if git config --get core.hooksPath >/dev/null 2>&1; then
+    git config --unset core.hooksPath
+    echo "  [ok] Unset core.hooksPath"
 fi
 
 echo ""
-echo "Git hooks installed successfully!"
+echo "Commithooks installed from $COMMITHOOKS"
 echo ""
-echo "The following hooks are now active:"
-echo "  • pre-commit  - Runs cargo fmt, clippy, and secret scanning"
-echo "  • commit-msg  - Validates commit message format"
+echo "Active hooks:"
+echo "  pre-commit   -> scripts/git-hooks/pre-commit (fmt, clippy, secrets)"
+echo "  commit-msg   -> scripts/git-hooks/commit-msg (message format)"
+echo "  pre-push     -> scripts/git-hooks/pre-push (trufflehog, audit, deny)"
+echo "  post-checkout, post-merge -> no-op (add .githooks/ stubs to enable)"
 echo ""
 echo "To bypass hooks (not recommended):"
 echo "  git commit --no-verify"
