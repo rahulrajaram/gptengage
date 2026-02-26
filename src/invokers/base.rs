@@ -3,6 +3,11 @@
 use anyhow::Result;
 use std::process::{Command, Stdio};
 
+/// Environment variables that Claude Code sets to detect nesting.
+/// We strip these so child processes (e.g. `claude -p`) don't think
+/// they're running inside another Claude instance.
+const CLAUDE_NESTING_ENV_VARS: &[&str] = &["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"];
+
 /// Execute a command with timeout
 pub async fn execute_command(
     cmd: &str,
@@ -15,6 +20,22 @@ pub async fn execute_command(
     command.stdin(Stdio::piped());
     command.stdout(Stdio::piped());
     command.stderr(Stdio::piped());
+
+    // Strip Claude nesting env vars so child processes can invoke Claude CLI
+    for var in CLAUDE_NESTING_ENV_VARS {
+        command.env_remove(var);
+    }
+
+    // Create a new session so the child is a process group leader,
+    // isolated from the parent's terminal. This also lets us kill
+    // the entire process group on timeout.
+    #[cfg(unix)]
+    unsafe {
+        command.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
+    }
 
     let mut child = command.spawn()?;
 
@@ -47,12 +68,17 @@ pub async fn execute_command(
             }
         }
         _ = tokio::time::sleep(timeout_duration) => {
-            // Kill the child process by PID to prevent resource leak
+            // Kill the entire process group (negative PID) to prevent
+            // orphaned child processes (e.g. claude spawning node, etc.)
             if let Some(child_pid) = pid {
                 #[cfg(unix)]
                 {
+                    let pgid = -(child_pid as i32);
                     unsafe {
-                        libc::kill(child_pid as i32, libc::SIGTERM);
+                        libc::kill(pgid, libc::SIGTERM);
+                        // Brief pause then SIGKILL to ensure cleanup
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        libc::kill(pgid, libc::SIGKILL);
                     }
                 }
                 #[cfg(windows)]
@@ -75,4 +101,54 @@ pub fn command_exists(cmd: &str) -> bool {
         .output()
         .ok()
         .is_some_and(|o| o.status.success())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_execute_command_basic() {
+        let result = execute_command("echo", &["hello world"], "", 5).await;
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap().trim(), "hello world");
+    }
+
+    #[tokio::test]
+    async fn test_execute_command_timeout() {
+        let result = execute_command("sleep", &["30"], "", 1).await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(
+            err.contains("timed out"),
+            "expected timeout error, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn test_claude_env_vars_not_inherited() {
+        // Set the nesting env vars in our process
+        std::env::set_var("CLAUDECODE", "1");
+        std::env::set_var("CLAUDE_CODE_ENTRYPOINT", "cli");
+
+        let result = execute_command("env", &[], "", 5).await;
+        assert!(result.is_ok());
+        let output = result.unwrap();
+
+        // The child should NOT see these variables
+        for line in output.lines() {
+            assert!(
+                !line.starts_with("CLAUDECODE="),
+                "CLAUDECODE should be stripped from child env"
+            );
+            assert!(
+                !line.starts_with("CLAUDE_CODE_ENTRYPOINT="),
+                "CLAUDE_CODE_ENTRYPOINT should be stripped from child env"
+            );
+        }
+
+        // Clean up
+        std::env::remove_var("CLAUDECODE");
+        std::env::remove_var("CLAUDE_CODE_ENTRYPOINT");
+    }
 }
