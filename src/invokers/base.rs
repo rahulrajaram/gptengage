@@ -83,6 +83,7 @@ pub async fn execute_command(
                 }
                 #[cfg(windows)]
                 {
+                    let _ = child_pid;
                     // TODO(windows): Process termination is not implemented on Windows.
                     // The child process will NOT be killed on timeout, which may leave
                     // orphaned AI CLI processes. A proper fix requires either the
