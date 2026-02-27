@@ -1,6 +1,6 @@
 [package]
 name = "gptengage"
-version = "1.1.1"
+version = "1.1.2"
 edition = "2021"
 description = "Multi-AI CLI orchestrator for Claude Code, Codex, and Gemini"
 license = "MIT"
