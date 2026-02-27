@@ -13,6 +13,7 @@ GPT Engage solves a specific problem: getting multiple AI perspectives on a sing
 - **Debate templates** - Use pre-configured scenarios for code review, architecture decisions, and security audits
 - **Synthesis generation** - Automatically generate conclusions that summarize consensus and disagreements
 - **Plugin system** - Add custom CLIs through TOML configuration files
+- **Evolutionary ideation** - Generate divergent idea trees from a seed prompt
 - **Unix composability** - Pipe content via stdin as topic or context
 - **Persistent sessions** - Maintain conversation history across invocations
 
@@ -40,13 +41,13 @@ Download the latest release for your platform:
 
 ```bash
 # Linux (x86_64)
-curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-linux-amd64-1.0.0.tar.gz | tar xz -C ~/.local/bin
+curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-linux-amd64.tar.gz | tar xz -C ~/.local/bin
 
 # macOS (Apple Silicon)
-curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-darwin-arm64-1.0.0.tar.gz | tar xz -C ~/.local/bin
+curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-darwin-arm64.tar.gz | tar xz -C ~/.local/bin
 
 # macOS (Intel)
-curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-darwin-amd64-1.0.0.tar.gz | tar xz -C ~/.local/bin
+curl -sSL https://github.com/rahulrajaram/gptengage/releases/latest/download/gptengage-darwin-amd64.tar.gz | tar xz -C ~/.local/bin
 ```
 
 Then add `~/.local/bin` to your `PATH` if it isn't already:
@@ -94,7 +95,7 @@ gptengage status
 Output:
 
 ```
-GPT Engage v1.0.0
+GPT Engage v1.1.1
 
 Detected CLIs:
   ✓ claude (Claude Code)
@@ -202,10 +203,11 @@ gptengage debate <TOPIC> [OPTIONS]
 |--------|-------------|
 | `--agent <CLI>` | Run multiple instances of a single CLI instead of cross-AI debate. |
 | `--instances <N>` | Number of instances when using `--agent`. Default: 3. |
-| `-p, --participants <LIST>` | Specify participants with optional personas. Format: `cli:persona,cli:persona`. |
+| `-m, --model <MODEL>` | Model to use when `--agent` is specified. |
+| `-p, --participants <LIST>` | Specify participants with optional personas and models. Format: `cli:persona` or `cli:persona:model`. |
 | `--agent-file <FILE>` | Load participant definitions from a JSON file. |
 | `--template <NAME>` | Use a predefined debate template. |
-| `--rounds <N>` | Number of debate rounds. Default: 3. |
+| `--rounds <N>` | Number of debate rounds. Default: 3 (or template default if using `--template`). |
 | `--synthesize` | Generate a synthesis after the debate completes. |
 | `--synthesizer <CLI>` | CLI to use for synthesis generation. Default: `claude`. |
 | `--output <FORMAT>` | Output format: `text`, `json`, or `markdown`. Default: `text`. |
@@ -264,6 +266,7 @@ gptengage invoke <CLI> <PROMPT> [OPTIONS]
 
 | Option | Description |
 |--------|-------------|
+| `-m, --model <MODEL>` | Model to use for the CLI (e.g., `claude-sonnet-4-20250514`, `gpt-4o`, `gemini-2.5-pro`). |
 | `--session <NAME>` | Use or create a persistent session. |
 | `--topic <DESC>` | Set the session topic. Auto-generated if omitted. |
 | `--context-file <PATH>` | Include file contents in the prompt. |
@@ -393,6 +396,42 @@ gptengage session <COMMAND>
 | `end <NAME>` | Delete a session. |
 | `end --all` | Delete all sessions. |
 
+### config
+
+Manage GPT Engage configuration.
+
+```bash
+gptengage config <COMMAND>
+```
+
+**Subcommands:**
+
+| Command | Description |
+|---------|-------------|
+| `get <KEY>` | Get the value of a configuration key. |
+| `set <KEY> <VALUE>` | Set a configuration key to a value. |
+| `list` | List all configuration settings. |
+
+**Examples:**
+
+List all settings:
+
+```bash
+gptengage config list
+```
+
+Get a specific setting:
+
+```bash
+gptengage config get default_timeout
+```
+
+Set a configuration value:
+
+```bash
+gptengage config set default_timeout 180
+```
+
 ### generate-agents
 
 Generate AI-powered agent definitions for structured debates.
@@ -425,6 +464,60 @@ gptengage generate-agents \
   --output agents.json
 
 gptengage debate "Should we migrate to microservices?" --agent-file agents.json
+```
+
+### ideate
+
+Generate divergent ideas from a seed using evolutionary ideation. GPT Engage builds an idea tree by expanding a seed idea into multiple branches, optionally going multiple levels deep.
+
+```bash
+gptengage ideate <SEED> [OPTIONS]
+```
+
+**Arguments:**
+
+| Argument | Description |
+|----------|-------------|
+| `SEED` | The seed idea to diverge from. |
+
+**Options:**
+
+| Option | Description |
+|--------|-------------|
+| `--sigma <SIGMA>` | Creativity level (0.0-3.0). Higher values produce more divergent ideas. Default: `1.0`. |
+| `--select` | Interactively select which L1 ideas to expand to L2. |
+| `--depth <DEPTH>` | Depth of idea tree (1-5). Default: `2`. |
+| `--force` | Bypass sigma (>3.0) and depth (>5) safety limits. |
+| `--cli <CLI>` | Which CLI to use. Default: `claude`. |
+| `-o, --output <OUTPUT>` | Output format: `text` or `json`. Default: `text`. |
+| `-t, --timeout <TIMEOUT>` | Timeout per CLI invocation. Default: `120`. |
+| `--color <COLOR>` | Color mode: `auto`, `truecolor`, `256`, or `none`. Default: `auto`. |
+| `--pager` | Display output in a scrollable pager. |
+
+**Examples:**
+
+Generate ideas from a seed:
+
+```bash
+gptengage ideate "A CLI tool that helps developers write better commit messages"
+```
+
+High-creativity deep exploration:
+
+```bash
+gptengage ideate "Sustainable urban farming" --sigma 2.5 --depth 3
+```
+
+Interactive selection with pager:
+
+```bash
+gptengage ideate "New authentication methods" --select --pager
+```
+
+JSON output for programmatic use:
+
+```bash
+gptengage ideate "ML-powered code review" --output json > ideas.json
 ```
 
 ### status
@@ -864,7 +957,7 @@ Output structure:
 
 ```json
 {
-  "gptengage_version": "1.0.0",
+  "gptengage_version": "1.1.1",
   "topic": "Should we use Rust?",
   "rounds": [
     [
