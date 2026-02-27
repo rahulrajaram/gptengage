@@ -8,7 +8,10 @@ set -euo pipefail
 COMMITHOOKS_DIR="${COMMITHOOKS_DIR:-$(git rev-parse --git-dir)}"
 source "$COMMITHOOKS_DIR/lib/common.sh"
 source "$COMMITHOOKS_DIR/lib/pre-push.sh"
+source "$COMMITHOOKS_DIR/lib/lint-rust.sh"
 
 echo "Running pre-push checks..."
 commithooks_reject_wip_commits "$@"
+commithooks_run_full_tests
+commithooks_rust_deny
 echo "Pre-push checks completed."

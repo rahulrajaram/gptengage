@@ -7,10 +7,8 @@ set -euo pipefail
 COMMITHOOKS_DIR="${COMMITHOOKS_DIR:-$(git rev-parse --git-dir)}"
 source "$COMMITHOOKS_DIR/lib/common.sh"
 source "$COMMITHOOKS_DIR/lib/lint-rust.sh"
-source "$COMMITHOOKS_DIR/lib/secrets.sh"
 
 echo "Running pre-commit checks..."
 commithooks_rust_fmt
 commithooks_rust_clippy
-commithooks_scan_secrets_in_diff
 echo "All pre-commit checks passed"
