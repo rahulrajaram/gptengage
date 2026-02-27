@@ -40,6 +40,20 @@ else
     echo "Or run gptengage with full path: $INSTALL_DIR/$BINARY_NAME"
 fi
 
+# Install commithooks if source is available
+COMMITHOOKS="${COMMITHOOKS_DIR:-$HOME/Documents/commithooks}"
+GIT_DIR_PATH="$(git rev-parse --git-dir 2>/dev/null || true)"
+if [ -d "$COMMITHOOKS/lib" ] && [ -n "$GIT_DIR_PATH" ]; then
+    echo ""
+    echo "Installing commithooks..."
+    for hook in pre-commit commit-msg pre-push post-checkout post-merge; do
+        [ -f "$COMMITHOOKS/$hook" ] && cp "$COMMITHOOKS/$hook" "$GIT_DIR_PATH/hooks/$hook" && chmod +x "$GIT_DIR_PATH/hooks/$hook"
+    done
+    rm -rf "${GIT_DIR_PATH:?}/lib"
+    cp -r "$COMMITHOOKS/lib" "$GIT_DIR_PATH/lib"
+    echo "✓ Commithooks installed from $COMMITHOOKS"
+fi
+
 echo ""
 echo "Detecting available CLIs..."
 echo ""

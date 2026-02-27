@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Project-specific pre-push checks for gptengage
+# Called by the dispatcher in .git/hooks/pre-push
+# Receives: $1=remote name, $2=remote URL, stdin=ref lines
+
+set -euo pipefail
+
+COMMITHOOKS_DIR="${COMMITHOOKS_DIR:-$(git rev-parse --git-dir)}"
+source "$COMMITHOOKS_DIR/lib/common.sh"
+source "$COMMITHOOKS_DIR/lib/pre-push.sh"
+
+echo "Running pre-push checks..."
+commithooks_reject_wip_commits "$@"
+echo "Pre-push checks completed."
