@@ -207,7 +207,7 @@ gptengage debate <TOPIC> [OPTIONS]
 | `-p, --participants <LIST>` | Specify participants with optional personas and models. Format: `cli:persona` or `cli:persona:model`. |
 | `--agent-file <FILE>` | Load participant definitions from a JSON file. |
 | `--template <NAME>` | Use a predefined debate template. |
-| `--rounds <N>` | Number of debate rounds. Default: 3 (or template default if using `--template`). |
+| `-r, --rounds <N>` | Number of debate rounds. Default: 3 (or template default if using `--template`). |
 | `--synthesize` | Generate a synthesis after the debate completes. |
 | `--synthesizer <CLI>` | CLI to use for synthesis generation. Default: `claude`. |
 | `--output <FORMAT>` | Output format: `text`, `json`, or `markdown`. Default: `text`. |
@@ -267,11 +267,11 @@ gptengage invoke <CLI> <PROMPT> [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `-m, --model <MODEL>` | Model to use for the CLI (e.g., `claude-sonnet-4-20250514`, `gpt-4o`, `gemini-2.5-pro`). |
-| `--session <NAME>` | Use or create a persistent session. |
+| `-s, --session <NAME>` | Use or create a persistent session. |
 | `--topic <DESC>` | Set the session topic. Auto-generated if omitted. |
-| `--context-file <PATH>` | Include file contents in the prompt. |
+| `-c, --context-file <PATH>` | Include file contents in the prompt. |
 | `--stdin-as <MODE>` | How to interpret stdin: `auto`, `context`, or `ignore`. Default: `auto`. |
-| `--timeout <SECONDS>` | Command timeout. Default: 120. |
+| `-t, --timeout <SECONDS>` | Command timeout. Default: 120. |
 | `--write` | Allow write access within the current directory. |
 
 **Examples:**
@@ -446,14 +446,15 @@ gptengage generate-agents --topic <TOPIC> --roles <ROLES> --output <FILE> [OPTIO
 |--------|-------------|
 | `--topic <TOPIC>` | The debate topic for context. |
 | `--roles <ROLES>` | Comma-separated list of roles. |
-| `--output <FILE>` | Output file path for generated JSON. |
+| `-o, --output <FILE>` | Output file path for generated JSON. |
 
 **Optional Options:**
 
 | Option | Description |
 |--------|-------------|
 | `--use-cli <CLI>` | CLI to use for generation. Default: `claude`. |
-| `--timeout <SECONDS>` | Timeout. Default: 120. |
+| `-t, --timeout <SECONDS>` | Timeout. Default: 120. |
+| `--write` | Allow write access within the current directory. |
 
 **Example:**
 
