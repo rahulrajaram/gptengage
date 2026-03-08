@@ -1,0 +1,31 @@
+name: Dependabot Auto-Approve
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    # Only auto-approve dependabot PRs with passing checks
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Approve PR
+        run: |
+          gh pr review --approve "${{ github.event.pull_request.number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge (squash)
+        run: |
+          gh pr merge --squash --auto "${{ github.event.pull_request.number }}"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

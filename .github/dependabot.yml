@@ -24,6 +24,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # Auto-merge minor and patch updates
+    auto-merge:
+      type: squash
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -41,3 +44,6 @@ updates:
       - "github-actions"
     reviewers:
       - "rahulrajaram"
+    # Auto-merge all GitHub Actions updates
+    auto-merge:
+      type: squash
