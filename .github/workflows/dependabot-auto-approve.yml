@@ -20,12 +20,12 @@ jobs:
     steps:
       - name: Approve PR
         run: |
-          gh pr review --approve "${{ github.event.pull_request.number }}"
+          gh pr review --approve "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Enable auto-merge (squash)
         run: |
-          gh pr merge --squash --auto "${{ github.event.pull_request.number }}"
+          gh pr merge --squash --auto "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
