@@ -1037,6 +1037,13 @@ gemini --sandbox --include-directories .
 
 Gemini typically requires longer timeouts. Use `--timeout 180` for complex prompts.
 
+### Agent attribution
+
+When GPT Engage invokes a child CLI, it preserves existing `AGENT_ATTRIBUTION_*`
+environment variables. If the caller has not set them, GPT Engage provides
+default `AGENT_ATTRIBUTION_CALLER` and `AGENT_ATTRIBUTION_PROJECT` values so
+downstream tooling can attribute work to the wrapper and project.
+
 ## File Locations
 
 | Path | Purpose |

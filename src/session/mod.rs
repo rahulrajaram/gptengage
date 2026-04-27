@@ -116,7 +116,7 @@ impl SessionManager {
         }
 
         // Sort by last interaction (most recent first)
-        summaries.sort_by(|a, b| b.last_interaction.cmp(&a.last_interaction));
+        summaries.sort_by_key(|summary| std::cmp::Reverse(summary.last_interaction));
         Ok(summaries)
     }
 
