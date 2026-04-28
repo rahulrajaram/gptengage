@@ -1,12 +1,41 @@
 //! Base invoker implementation with common utilities
 
 use anyhow::Result;
+use std::path::Path;
 use std::process::{Command, Stdio};
 
 /// Environment variables that Claude Code sets to detect nesting.
 /// We strip these so child processes (e.g. `claude -p`) don't think
 /// they're running inside another Claude instance.
 const CLAUDE_NESTING_ENV_VARS: &[&str] = &["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"];
+
+fn command_agent_name(cmd: &str) -> String {
+    let basename = Path::new(cmd)
+        .file_name()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.is_empty())
+        .unwrap_or(cmd);
+    format!("gptengage-{basename}")
+}
+
+fn project_slug_from_cwd() -> Option<String> {
+    std::env::current_dir()
+        .ok()
+        .and_then(|path| path.file_name().map(|value| value.to_owned()))
+        .and_then(|value| value.to_str().map(ToOwned::to_owned))
+        .filter(|value| !value.trim().is_empty())
+}
+
+fn apply_agent_attribution_env(command: &mut tokio::process::Command, cmd: &str) {
+    if std::env::var_os("AGENT_ATTRIBUTION_CALLER").is_none() {
+        command.env("AGENT_ATTRIBUTION_CALLER", command_agent_name(cmd));
+    }
+    if std::env::var_os("AGENT_ATTRIBUTION_PROJECT").is_none() {
+        if let Some(slug) = project_slug_from_cwd() {
+            command.env("AGENT_ATTRIBUTION_PROJECT", slug);
+        }
+    }
+}
 
 /// Execute a command with timeout
 pub async fn execute_command(
@@ -25,6 +54,7 @@ pub async fn execute_command(
     for var in CLAUDE_NESTING_ENV_VARS {
         command.env_remove(var);
     }
+    apply_agent_attribution_env(&mut command, cmd);
 
     // Create a new session so the child is a process group leader,
     // isolated from the parent's terminal. This also lets us kill
@@ -151,5 +181,25 @@ mod tests {
         // Clean up
         std::env::remove_var("CLAUDECODE");
         std::env::remove_var("CLAUDE_CODE_ENTRYPOINT");
+    }
+
+    #[tokio::test]
+    async fn test_agent_attribution_env_defaults_are_inherited_by_child() {
+        std::env::remove_var("AGENT_ATTRIBUTION_CALLER");
+        std::env::remove_var("AGENT_ATTRIBUTION_PROJECT");
+
+        let result = execute_command("env", &[], "", 5).await;
+        assert!(result.is_ok());
+        let output = result.unwrap();
+
+        assert!(output
+            .lines()
+            .any(|line| line == "AGENT_ATTRIBUTION_CALLER=gptengage-env"));
+        assert!(
+            output
+                .lines()
+                .any(|line| line.starts_with("AGENT_ATTRIBUTION_PROJECT=")),
+            "expected child env to include a project slug"
+        );
     }
 }
