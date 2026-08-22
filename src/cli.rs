@@ -289,6 +289,18 @@ pub enum Commands {
         #[arg(long, short = 'c', verbatim_doc_comment)]
         context_file: Option<String>,
 
+        /// Image file(s) to attach for vision models (repeatable)
+        ///
+        /// Each image is validated and referenced in the prompt so the
+        /// underlying CLI can analyze it as a visual input.
+        /// Currently supported: claude (uses native @-path image refs).
+        /// Codex and Gemini will return a clear error until their invokers
+        /// implement image passthrough.
+        ///
+        /// Example: --image screenshot.png --image hero.jpg
+        #[arg(long, short = 'i', verbatim_doc_comment)]
+        image: Vec<String>,
+
         /// Timeout in seconds
         ///
         /// The CLI process is terminated if it exceeds this duration.
@@ -655,6 +667,7 @@ impl Cli {
                 session,
                 topic,
                 context_file,
+                image,
                 timeout,
                 write,
                 stdin_as,
@@ -666,6 +679,7 @@ impl Cli {
                     session,
                     topic,
                     context_file,
+                    image,
                     timeout,
                     AccessMode::from_write_flag(write),
                     stdin_as,
