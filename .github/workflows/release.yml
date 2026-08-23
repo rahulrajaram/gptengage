@@ -131,7 +131,7 @@ jobs:
 
       - name: Download release assets
         run: |
-          gh release download ${{ github.ref_name }} -D release-assets
+          gh release download ${{ github.ref_name }} -D release-assets --repo "${{ github.repository }}"
         env:
           GH_TOKEN: ${{ github.token }}
 
