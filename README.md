@@ -95,7 +95,7 @@ gptengage status
 Output:
 
 ```
-GPT Engage v1.2.0
+GPT Engage v1.2.1
 
 Detected CLIs:
   ✓ claude (Claude Code)
@@ -958,7 +958,7 @@ Output structure:
 
 ```json
 {
-  "gptengage_version": "1.2.0",
+  "gptengage_version": "1.2.1",
   "topic": "Should we use Rust?",
   "rounds": [
     [
