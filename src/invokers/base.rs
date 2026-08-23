@@ -42,17 +42,31 @@ pub async fn execute_command(
     // Save the PID before child is consumed by wait_with_output
     let pid = child.id();
 
-    // Write input to stdin
-    if let Some(mut stdin) = child.stdin.take() {
+    let mut stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("Failed to open command stdin"))?;
+    let input = input.as_bytes().to_vec();
+
+    // Feed stdin while wait_with_output drains stdout/stderr. Writing the
+    // entire prompt first can deadlock when a command emits output while it
+    // reads and both pipe buffers fill on a long exchange.
+    let execution = async move {
         use tokio::io::AsyncWriteExt;
-        stdin.write_all(input.as_bytes()).await?;
-    }
+
+        let write_input = async move {
+            stdin.write_all(&input).await?;
+            stdin.shutdown().await
+        };
+        let ((), output) = tokio::try_join!(write_input, child.wait_with_output())?;
+        Ok::<std::process::Output, std::io::Error>(output)
+    };
 
     // Wait for completion with timeout
     let timeout_duration = std::time::Duration::from_secs(timeout);
 
     tokio::select! {
-        result = child.wait_with_output() => {
+        result = execution => {
             match result {
                 Ok(output) => {
                     let stdout = String::from_utf8_lossy(&output.stdout).to_string();

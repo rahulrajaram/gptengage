@@ -143,4 +143,81 @@ mod tests {
         assert!(result.is_ok());
         assert!(result.unwrap().contains("hello world"));
     }
+
+    #[tokio::test]
+    async fn test_stdin_mode_round_trips_prompt_larger_than_argv_string_limit() {
+        let config = PluginConfig {
+            plugin: PluginMeta {
+                name: "stdin-test".to_string(),
+                description: "large stdin transport check".to_string(),
+                command: "cat".to_string(),
+            },
+            invoke: InvokeConfig {
+                base_args: vec![],
+                prompt_mode: PromptMode::Stdin,
+                prompt_arg: None,
+                model_arg: None,
+            },
+            access: AccessConfig {
+                readonly_args: vec![],
+                write_args: vec![],
+            },
+            detection: DetectionConfig {
+                check_command: "cat".to_string(),
+                check_args: vec![],
+            },
+        };
+        let invoker = PluginInvoker::new(config);
+        // Linux commonly limits a single argv string to 128 KiB even when the
+        // aggregate ARG_MAX is larger. Stdin must carry this prompt losslessly.
+        let prompt = format!("BEGIN\n{}\nEND", "x".repeat(256 * 1024));
+
+        let result = invoker
+            .invoke(&prompt, 30, AccessMode::ReadOnly, None)
+            .await
+            .expect("large stdin prompt failed");
+
+        assert_eq!(result, prompt);
+    }
+
+    #[tokio::test]
+    async fn test_invoker_access_args_after_model_and_prompt_last() {
+        // Verify argument ordering: base_args -> model pair -> access args ->
+        // prompt (last, in arg_last mode). The single --tools comes from the
+        // access-mode args only.
+        let config = PluginConfig {
+            plugin: PluginMeta {
+                name: "echo".to_string(),
+                description: "arg order check".to_string(),
+                command: "echo".to_string(),
+            },
+            invoke: InvokeConfig {
+                base_args: vec!["BASE".to_string()],
+                prompt_mode: PromptMode::ArgLast,
+                prompt_arg: None,
+                model_arg: Some("--model".to_string()),
+            },
+            access: AccessConfig {
+                readonly_args: vec!["--tools".to_string(), "ro-set".to_string()],
+                write_args: vec!["--tools".to_string(), "w-set".to_string()],
+            },
+            detection: DetectionConfig {
+                check_command: "echo".to_string(),
+                check_args: vec![],
+            },
+        };
+        let invoker = PluginInvoker::new(config);
+
+        let ro = invoker
+            .invoke("PROMPT", 30, AccessMode::ReadOnly, Some("m"))
+            .await
+            .expect("read-only invoke failed");
+        assert_eq!(ro.trim(), "BASE --model m --tools ro-set PROMPT");
+
+        let w = invoker
+            .invoke("PROMPT", 30, AccessMode::WorkspaceWrite, Some("m"))
+            .await
+            .expect("write invoke failed");
+        assert_eq!(w.trim(), "BASE --model m --tools w-set PROMPT");
+    }
 }
