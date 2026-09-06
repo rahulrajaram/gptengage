@@ -222,6 +222,35 @@ pub enum Commands {
         synthesizer: String,
     },
 
+    /// Run bounded linear grilling with explicit roles and private checkpoints.
+    /// Backend access restrictions are requested, not independently verified.
+    Grill {
+        topic: String,
+        #[arg(long)]
+        griller: String,
+        #[arg(long)]
+        respondent: String,
+        #[arg(long)]
+        griller_instructions: std::path::PathBuf,
+        #[arg(long)]
+        respondent_instructions: std::path::PathBuf,
+        #[arg(long)]
+        griller_model: Option<String>,
+        #[arg(long)]
+        respondent_model: Option<String>,
+        /// New private directory; existing paths are refused. No resume/replay.
+        #[arg(long)]
+        run_dir: std::path::PathBuf,
+        #[arg(long, default_value_t = 3)]
+        exchanges: u32,
+        /// Per direct invocation timeout in seconds; no hard token/spend cap.
+        #[arg(long, default_value_t = 120)]
+        timeout: u64,
+        /// Include model-authored Q/A, which may echo supplied context.
+        #[arg(long)]
+        show_dialogue: bool,
+    },
+
     /// Invoke a specific CLI with a prompt
     ///
     /// Examples:
@@ -246,6 +275,10 @@ pub enum Commands {
     Invoke {
         /// Which CLI to invoke: claude, codex, gemini, or a plugin name
         cli: String,
+
+        /// Output text or a structured invocation report (metadata may be unknown)
+        #[arg(long, default_value = "text", value_parser = ["text", "json"])]
+        output: String,
 
         /// The prompt to send (optional if piping via stdin)
         ///
@@ -660,8 +693,38 @@ impl Cli {
                 .await
             }
 
+            Commands::Grill {
+                topic,
+                griller,
+                respondent,
+                griller_instructions,
+                respondent_instructions,
+                griller_model,
+                respondent_model,
+                run_dir,
+                exchanges,
+                timeout,
+                show_dialogue,
+            } => {
+                crate::commands::grill::run_grill(crate::commands::grill::GrillOptions {
+                    topic,
+                    griller,
+                    respondent,
+                    griller_instructions,
+                    respondent_instructions,
+                    griller_model,
+                    respondent_model,
+                    run_dir,
+                    exchanges,
+                    timeout,
+                    show_dialogue,
+                })
+                .await
+            }
+
             Commands::Invoke {
                 cli,
+                output,
                 prompt,
                 model,
                 session,
@@ -672,7 +735,7 @@ impl Cli {
                 write,
                 stdin_as,
             } => {
-                invoke::run_invoke(
+                invoke::run_invoke_with_output(
                     cli,
                     model,
                     prompt,
@@ -683,6 +746,7 @@ impl Cli {
                     timeout,
                     AccessMode::from_write_flag(write),
                     stdin_as,
+                    output,
                 )
                 .await
             }

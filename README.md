@@ -1,6 +1,6 @@
 # GPT Engage
 
-GPT Engage is a command-line orchestrator for multi-AI debates. It runs structured debates between Claude, Codex, Gemini, and any CLI-based LLM. GPT Engage executes all participants in parallel, injects debate context between rounds, and produces synthesis reports.
+GPT Engage is a command-line orchestrator for multi-AI debates. It runs structured debates between Claude, Codex, Gemini, and any CLI-based LLM. Debate participants run in parallel; bounded grilling alternates a griller and respondent. Invocation reports preserve observed process outcomes without inventing backend identity or usage.
 
 ## Overview
 
@@ -16,6 +16,43 @@ GPT Engage solves a specific problem: getting multiple AI perspectives on a sing
 - **Evolutionary ideation** - Generate divergent idea trees from a seed prompt
 - **Unix composability** - Pipe content via stdin as topic or context
 - **Persistent sessions** - Maintain conversation history across invocations
+
+## Bounded grilling and observable invocation reports
+
+`gptengage invoke <backend> <prompt> --output json` emits a structured invocation
+report; text remains the default. The report distinguishes requested model/access
+from observed process outcomes. Effective model, provider, completion, usage and
+access enforcement remain `null` when opaque backend output does not establish
+them. A plugin with no model-forwarding flag rejects explicit model selection
+before launching. Named-session and debate artifacts retain invocation reports
+and failed participants; failed outputs are excluded from subsequent model context.
+
+```bash
+gptengage grill "Stress-test this proposal" \
+  --griller codex --respondent claude \
+  --griller-instructions griller.txt --respondent-instructions respondent.txt \
+  --run-dir ./new-private-run --exchanges 3 --timeout 120
+```
+
+Role files supply question/evidence policy; the runtime enforces alternating
+calls, positive bounds, failed-slot visibility and private checkpoints. It saves
+before each call and after each outcome. The new run directory must not exist;
+its parent must exist. Unix directories/files are created with private permissions.
+A pending checkpoint after interruption means the call's completion is unknown;
+there is no automatic retry, resume or deterministic replay.
+
+Default stdout is a structural status summary. `--show-dialogue` includes successful
+model-authored question/answer text; models may echo private input, so review that
+text before sharing. Private artifacts contain instructions, prompts, dialogue and
+process diagnostics. They are separate from named sessions and are never created
+implicitly by ordinary `invoke`.
+
+Bounds cover at most `2 * exchanges` direct calls and each invocation's timeout,
+plus cleanup/persistence. They are not hard token, nested-tool or spend caps.
+Read-only access is requested from adapters, not independently verified. This
+first runtime has no lattice/gradient scheduler, semantic question validation or
+cross-model reliability guarantee. Private checkpoint persistence currently requires
+Unix; process-group cleanup cannot control descendants that escape the group.
 
 ## Installation
 

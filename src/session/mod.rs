@@ -20,6 +20,8 @@ pub struct Turn {
     pub role: String, // "user" or "assistant"
     pub content: String,
     pub timestamp: DateTime<Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation: Option<crate::invokers::InvocationReport>,
 }
 
 #[derive(Debug)]
@@ -137,6 +139,32 @@ impl SessionManager {
             role,
             content,
             timestamp: Utc::now(),
+            invocation: None,
+        };
+        session.turns.push(turn);
+        session.last_interaction = Utc::now();
+    }
+
+    /// Preserve transport failures without treating them as assistant answers.
+    pub fn add_invocation_turn(
+        &self,
+        session: &mut Session,
+        report: crate::invokers::InvocationReport,
+    ) {
+        let turn = Turn {
+            role: if report.is_success() {
+                "assistant"
+            } else {
+                "invocation_failure"
+            }
+            .into(),
+            content: if report.is_success() {
+                report.stdout.clone()
+            } else {
+                String::new()
+            },
+            timestamp: Utc::now(),
+            invocation: Some(report),
         };
         session.turns.push(turn);
         session.last_interaction = Utc::now();
@@ -151,7 +179,11 @@ impl SessionManager {
         let mut prompt = String::new();
         prompt.push_str("[CONVERSATION HISTORY]\n");
 
-        for turn in &session.turns {
+        for turn in session
+            .turns
+            .iter()
+            .filter(|turn| turn.role != "invocation_failure")
+        {
             let role = if turn.role == "user" {
                 "User"
             } else {
@@ -369,11 +401,13 @@ mod tests {
                     role: "user".to_string(),
                     content: "Hello".to_string(),
                     timestamp: now,
+                    invocation: None,
                 },
                 Turn {
                     role: "assistant".to_string(),
                     content: "Hi".to_string(),
                     timestamp: now,
+                    invocation: None,
                 },
             ],
         };
@@ -388,5 +422,37 @@ mod tests {
         assert_eq!(deserialized.cli, session.cli);
         assert_eq!(deserialized.topic, session.topic);
         assert_eq!(deserialized.turns.len(), 2);
+    }
+    #[test]
+    fn invocation_failure_is_saved_but_not_presented_as_answer() {
+        let manager = SessionManager {
+            sessions_dir: std::path::PathBuf::new(),
+        };
+        let mut session = manager
+            .create_session("report".into(), "fixture".into(), "topic".into())
+            .unwrap();
+        let report = crate::invokers::InvocationReport {
+            outcome: crate::invokers::InvocationOutcome::TimedOut,
+            diagnostic: Some("private diagnostic".into()),
+            ..crate::invokers::InvocationReport::unknown(
+                "fixture",
+                Some("requested"),
+                crate::invokers::AccessMode::ReadOnly,
+            )
+        };
+        manager.add_invocation_turn(&mut session, report);
+        let serialized = serde_json::to_string(&session).unwrap();
+        assert!(serialized.contains("timed_out"));
+        assert!(serialized.contains("requested"));
+        let prompt = manager.build_prompt_with_history(&session, "next");
+        assert!(!prompt.contains("private diagnostic"));
+        assert!(!prompt.contains("Assistant:"));
+    }
+
+    #[test]
+    fn old_turn_without_report_still_loads() {
+        let json = r#"{"role":"assistant","content":"hi","timestamp":"2026-09-06T00:00:00Z"}"#;
+        let turn: Turn = serde_json::from_str(json).unwrap();
+        assert!(turn.invocation.is_none());
     }
 }

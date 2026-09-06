@@ -2,8 +2,8 @@
 //!
 //! Allows invoking custom CLIs defined via TOML plugin files.
 
-use super::base::{command_exists, execute_command};
-use super::{AccessMode, Invoker};
+use super::base::{command_exists, execute_command_report};
+use super::{AccessMode, InvocationOutcome, InvocationReport, Invoker};
 use crate::plugins::{PluginConfig, PromptMode};
 use async_trait::async_trait;
 
@@ -29,6 +29,37 @@ impl Invoker for PluginInvoker {
         access_mode: AccessMode,
         model: Option<&str>,
     ) -> anyhow::Result<String> {
+        self.invoke_report(prompt, timeout, access_mode, model)
+            .await
+            .into_text()
+    }
+
+    async fn invoke_report(
+        &self,
+        prompt: &str,
+        timeout: u64,
+        access_mode: AccessMode,
+        model: Option<&str>,
+    ) -> InvocationReport {
+        let mut report = InvocationReport::unknown(self.name(), model, access_mode);
+        report.command = Some(self.config.plugin.command.clone());
+        report.capabilities.model_selection = Some(
+            self.config
+                .invoke
+                .model_arg
+                .as_ref()
+                .is_some_and(|arg| !arg.trim().is_empty()),
+        );
+        report.capabilities.provenance = "plugin_configuration".into();
+        report.access.provenance = "plugin_configuration".into();
+        if let Err(error) = self.validate_model(model) {
+            return InvocationReport {
+                outcome: InvocationOutcome::Rejected,
+                diagnostic: Some(error.to_string()),
+                ..report
+            };
+        }
+
         // Build argument list
         let mut args: Vec<String> = self.config.invoke.base_args.clone();
 
@@ -38,9 +69,12 @@ impl Invoker for PluginInvoker {
                 args.push(model_arg.clone());
                 args.push(m.to_string());
             }
-            // If no model_arg configured, model is silently ignored
         }
 
+        report.access.submitted_args = match access_mode {
+            AccessMode::ReadOnly => self.config.access.readonly_args.clone(),
+            AccessMode::WorkspaceWrite => self.config.access.write_args.clone(),
+        };
         // Add access mode arguments
         match access_mode {
             AccessMode::ReadOnly => {
@@ -75,7 +109,34 @@ impl Invoker for PluginInvoker {
         // Convert Vec<String> to Vec<&str> for execute_command
         let args_ref: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
 
-        execute_command(&self.config.plugin.command, &args_ref, &input, timeout).await
+        execute_command_report(
+            &self.config.plugin.command,
+            &args_ref,
+            &input,
+            timeout,
+            report,
+        )
+        .await
+    }
+
+    fn validate_model(&self, model: Option<&str>) -> anyhow::Result<()> {
+        if model.is_some_and(|model| model.trim().is_empty()) {
+            anyhow::bail!("Explicit model must not be empty");
+        }
+        if model.is_some()
+            && !self
+                .config
+                .invoke
+                .model_arg
+                .as_ref()
+                .is_some_and(|arg| !arg.trim().is_empty())
+        {
+            anyhow::bail!(
+                "Plugin '{}' does not support explicit model selection: configure invoke.model_arg",
+                self.name()
+            );
+        }
+        Ok(())
     }
 
     fn name(&self) -> &str {
@@ -219,5 +280,58 @@ mod tests {
             .await
             .expect("write invoke failed");
         assert_eq!(w.trim(), "BASE --model m --tools w-set PROMPT");
+    }
+    #[tokio::test]
+    async fn rejects_unsupported_model_before_launch() {
+        let mut config = create_test_config();
+        config.plugin.command = "/nonexistent/would-fail-if-launched".into();
+        let report = PluginInvoker::new(config)
+            .invoke_report("prompt", 5, AccessMode::ReadOnly, Some("chosen"))
+            .await;
+        assert_eq!(report.outcome, InvocationOutcome::Rejected);
+        assert_eq!(report.requested_model.as_deref(), Some("chosen"));
+        assert!(report.diagnostic.unwrap().contains("model_arg"));
+    }
+
+    #[tokio::test]
+    async fn forwarding_is_not_observed_identity_or_enforcement() {
+        let mut config = create_test_config();
+        config.invoke.model_arg = Some("--model".into());
+        let report = PluginInvoker::new(config)
+            .invoke_report("prompt", 5, AccessMode::ReadOnly, Some("chosen"))
+            .await;
+        assert!(report.is_success());
+        assert!(report.stdout.contains("--model chosen"));
+        assert_eq!(report.capabilities.model_selection, Some(true));
+        assert_eq!(report.capabilities.provenance, "plugin_configuration");
+        assert!(report.effective_model.is_none());
+        assert!(report.provider.is_none());
+        assert!(report.usage.is_none());
+        assert!(report.access.enforced.is_none());
+    }
+
+    #[tokio::test]
+    async fn rejects_blank_model_and_blank_model_flag() {
+        let mut config = create_test_config();
+        config.invoke.model_arg = Some("--model".into());
+        let report = PluginInvoker::new(config.clone())
+            .invoke_report("prompt", 5, AccessMode::ReadOnly, Some(" "))
+            .await;
+        assert_eq!(report.outcome, InvocationOutcome::Rejected);
+        config.invoke.model_arg = Some(" ".into());
+        let report = PluginInvoker::new(config)
+            .invoke_report("prompt", 5, AccessMode::ReadOnly, Some("chosen"))
+            .await;
+        assert_eq!(report.outcome, InvocationOutcome::Rejected);
+    }
+
+    #[test]
+    fn preflight_rejects_unsupported_model_without_process() {
+        let mut config = create_test_config();
+        config.plugin.command = "/nonexistent/no-launch".into();
+        let invoker = PluginInvoker::new(config);
+        assert!(invoker.validate_model(None).is_ok());
+        assert!(invoker.validate_model(Some("chosen")).is_err());
+        assert!(invoker.validate_model(Some(" ")).is_err());
     }
 }
