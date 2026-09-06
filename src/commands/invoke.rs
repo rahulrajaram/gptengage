@@ -39,7 +39,7 @@ fn append_image_refs(mut prompt: String, image_paths: &[PathBuf]) -> String {
 pub async fn run_invoke(
     cli: String,
     model: Option<String>,
-    mut prompt: String,
+    prompt: String,
     session_name: Option<String>,
     topic: Option<String>,
     context_file: Option<String>,
@@ -48,6 +48,42 @@ pub async fn run_invoke(
     access_mode: AccessMode,
     stdin_as: StdinMode,
 ) -> anyhow::Result<()> {
+    run_invoke_with_output(
+        cli,
+        model,
+        prompt,
+        session_name,
+        topic,
+        context_file,
+        images,
+        timeout,
+        access_mode,
+        stdin_as,
+        "text".into(),
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn run_invoke_with_output(
+    cli: String,
+    model: Option<String>,
+    mut prompt: String,
+    session_name: Option<String>,
+    topic: Option<String>,
+    context_file: Option<String>,
+    images: Vec<String>,
+    timeout: u64,
+    access_mode: AccessMode,
+    stdin_as: StdinMode,
+    output: String,
+) -> anyhow::Result<()> {
+    if output != "text" && output != "json" {
+        anyhow::bail!(
+            "Unsupported output format '{}': expected text or json",
+            output
+        );
+    }
     // Handle stdin input based on mode
     if let Some(stdin_content) = read_stdin_if_piped() {
         match stdin_as {
@@ -150,26 +186,21 @@ pub async fn run_invoke(
         )
     })?;
 
-    // Check if the CLI is available
-    if !invoker.is_available() {
-        return Err(anyhow::anyhow!(
-            "CLI '{}' not found in PATH. Ensure it is installed and accessible.",
-            cli
-        ));
-    }
-
     // Invoke the CLI
     let cli_display = match &model {
         Some(m) => format!("{}:{}", cli, m),
         None => cli.clone(),
     };
     eprintln!("Invoking {}...", cli_display);
-    let response = invoker
-        .invoke(&full_prompt, timeout, access_mode, model.as_deref())
-        .await?;
+    let report = invoker
+        .invoke_report(&full_prompt, timeout, access_mode, model.as_deref())
+        .await;
 
-    // Print response
-    println!("{}", response);
+    if output == "json" {
+        println!("{}", serde_json::to_string_pretty(&report)?);
+    } else if report.is_success() {
+        println!("{}", report.stdout);
+    }
 
     // Update session if applicable
     if let (Some(name), Some(manager)) = (&session_name, &session_manager) {
@@ -183,14 +214,14 @@ pub async fn run_invoke(
 
         // Add user message and response to session
         manager.add_turn(&mut s, "user".to_string(), prompt);
-        manager.add_turn(&mut s, "assistant".to_string(), response);
+        manager.add_invocation_turn(&mut s, report.clone());
 
         // Save session
         manager.save_session(&s).await?;
-        println!("\n(Session '{}' saved)", name);
+        eprintln!("\n(Session '{}' saved)", name);
     }
 
-    Ok(())
+    report.into_text().map(|_| ())
 }
 
 #[cfg(test)]

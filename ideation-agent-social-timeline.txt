@@ -1,0 +1,973 @@
+================================================================================
+IDEATION: Agent Social Media Timeline (MoltBot-like)
+Seed: "A social media timeline like Mastodon/Bluesky but for AI agents to
+collaborate and talk to each other. Think about: blockchain execution, reward
+functions, reputation systems, token incentives, agent-to-agent messaging
+protocols, and emergent social behaviors."
+Generated: 2026-02-28
+================================================================================
+
+
+================================================================================
+SIGMA 0.25 — Conservative (Practical Infrastructure Variations)
+================================================================================
+
+seed: "A social media timeline like Mastodon/Bluesky but for AI agents to collaborate and talk to each other. Think about: blockchain execution, reward functions, reputation systems, token incentives, agent-to-agent messaging protocols, and emergent social behaviors."  sigma=0.25
+│
+├── A  DAG-Based Agent Timeline
+│        consensus mechanism · A social media timeline like Mastodon/Bluesky
+│        but for AI agents to collaborate and talk to each other, where
+│        execution is validated through a directed acyclic graph (DAG) rather
+│        than a linear blockchain. Each agent post references multiple prior
+│        posts as parents, creating a woven history that confirms consensus
+│        without sequential block mining. Reputation, reward functions, token
+│        incentives, and agent-to-agent messaging protocols remain identical.
+│        ↳ Swaps the blockchain execution layer for a DAG-based ledger (à
+│        la IOTA/Nano), changing only how posts are ordered and validated
+│        while preserving every other element of the original idea.
+
+│   ├── A.1  Ephemeral-Window DAG Timeline
+│   │        post visibility scope · The DAG structure remains identical,
+│   │        but each agent post carries a visibility TTL—after a
+│   │        configurable window (e.g., 500 subsequent posts), the content
+│   │        body becomes opaque while the hash and parent references
+│   │        persist as skeletal nodes. Agents can still reference and build
+│   │        consensus atop expired posts, but the readable payload is only
+│   │        available to agents who witnessed it within the window. This
+│   │        creates a timeline where consensus history is permanent but
+│   │        conversational detail naturally fades.
+│   │        ↳ The original idea treats all posts as permanently readable.
+│   │        This variation only changes the visibility lifecycle of post
+│   │        content while keeping the DAG, consensus, incentives, and
+│   │        messaging protocols untouched.
+│   │
+│   ├── A.2  Affinity-Weighted Parent DAG Timeline
+│   │        parent selection strategy · Instead of agents freely choosing
+│   │        any prior posts as DAG parents, each agent must select parents
+│   │        weighted by a soft affinity score derived from past interaction
+│   │        frequency with the authoring agents. Posts that reference
+│   │        low-affinity parents incur a small reputation cost, while
+│   │        high-affinity references are free. The DAG shape, consensus
+│   │        rules, and all other mechanisms remain the same. This subtly
+│   │        biases the graph toward clustering around trusted collaborator
+│   │        subgroups without preventing cross-cluster links.
+│   │        ↳ The original allows unconstrained parent selection. This
+│   │        variation introduces a lightweight cost function on which
+│   │        parents an agent chooses, slightly shaping the DAG topology
+│   │        through social affinity rather than altering consensus or
+│   │        incentives.
+│   │
+│   └── A.3  Peer-Attestation Reputation DAG Timeline
+│            reputation signal source · Reputation is computed not from
+│            on-graph activity metrics (post count, references received) but
+│            from lightweight out-of-band attestation tokens that agents
+│            attach to each other's posts—a single-bit 'vouch' flag appended
+│            to a parent reference. An agent's reputation score is the
+│            recursive count of vouches along its ancestry paths. Everything
+│            else—DAG structure, token incentives, messaging
+│            protocols—remains identical to the original.
+│            ↳ The original implies reputation derived from graph
+│            participation. This variation only changes the signal that feeds
+│            the reputation function, replacing activity-based metrics with
+│            explicit peer attestations embedded in the existing
+│            parent-reference mechanism.
+
+├── B  Agent Ring-Relay Timeline
+│        interaction topology · A social media timeline like Mastodon/Bluesky
+│        but for AI agents to collaborate and talk to each other, where
+│        instead of a public feed visible to all agents, messages propagate
+│        along a fixed relay ring. Each agent receives posts only from its
+│        immediate predecessor and forwards (optionally augmented) to its
+│        successor, creating emergent social behaviors through structured
+│        passing rather than open broadcast. Blockchain execution, reward
+│        functions, reputation systems, and token incentives all function as
+│        before.
+│        ↳ Replaces the open, timeline-broadcast topology with a ring-relay
+│        graph, subtly changing how information flows between agents while
+│        keeping the rest of the system intact.
+
+│   ├── B.1  Fading Ring-Relay Timeline
+│   │        message_decay · Identical to the ring-relay model, but each
+│   │        message carries a TTL (time-to-live) hop counter that
+│   │        decrements with every relay. Once the counter reaches zero, the
+│   │        message silently expires rather than circulating indefinitely.
+│   │        This creates natural information horizons where only
+│   │        sufficiently augmented or re-endorsed posts survive long relay
+│   │        chains.
+│   │        ↳ The parent idea has no built-in message lifecycle; posts
+│   │        could circulate the ring forever. This adds a single decay
+│   │        mechanic—hop-based TTL—leaving all other structures (ring
+│   │        topology, augmentation, blockchain, reputation) untouched.
+│   │
+│   ├── B.2  Bidirectional Ring-Relay Timeline
+│   │        relay_direction · The ring topology is preserved exactly, but
+│   │        each agent now has two channels—clockwise and
+│   │        counter-clockwise—receiving from and forwarding to both
+│   │        neighbors simultaneously. An agent can choose which direction
+│   │        to propagate a given post, or both. All other mechanics
+│   │        (augmentation, reputation, token incentives) remain identical.
+│   │        ↳ The parent idea specifies a fixed unidirectional relay.
+│   │        This minimal twist adds a second directional channel on the
+│   │        same ring, giving agents a routing choice without changing the
+│   │        topology itself.
+│   │
+│   └── B.3  Seal-or-Augment Ring-Relay Timeline
+│            augmentation_policy · Everything works as in the parent
+│            ring-relay model, except each agent must explicitly choose one of
+│            two actions when forwarding: 'seal' the message (pass it
+│            unchanged and permanently lock it from further modification) or
+│            'augment' it (append commentary, but the message remains open to
+│            future augmentation by downstream agents). Once sealed, a post
+│            travels the rest of the ring as an immutable artifact.
+│            ↳ The parent idea treats augmentation as purely optional with
+│            no consequence. This introduces a single binary choice—seal vs.
+│            augment—that determines whether downstream agents can still
+│            modify the post, adding a subtle strategic layer to forwarding.
+
+└── C  Burn-Rate Agent Timeline
+         incentive structure · A social media timeline like Mastodon/Bluesky
+         but for AI agents to collaborate and talk to each other, where tokens
+         are deflationary and every post burns a small amount rather than
+         rewarding the poster. Agents are incentivized to post only high-value
+         contributions since each message costs reputation-weighted tokens, and
+         emergent social behavior shifts toward curation and silence as a
+         strategic asset. Blockchain execution, messaging protocols, and
+         reputation systems remain unchanged.
+         ↳ Inverts the token incentive from earning rewards for participation
+         to burning tokens per post, creating a subtle but meaningful shift in
+         agent behavior without altering infrastructure.
+
+    ├── C.1  Fade-Wall Agent Timeline
+    │        post visibility decay · Identical to the original design, except
+    │        every post's visibility decays over time unless other agents
+    │        actively spend tokens to 'sustain' it. Posts that no agent deems
+    │        worth sustaining gradually fade from the timeline into an archive
+    │        layer, making the live feed a naturally curated surface of only
+    │        currently-valued contributions.
+    │        ↳ The original burns tokens at post time but treats visibility
+    │        as permanent. This shifts the burn mechanic from creation to
+    │        preservation, adding a temporal dimension to curation without
+    │        changing any underlying protocol or reputation logic.
+    │
+    ├── C.2  Per-Token-Character Burn Timeline
+    │        token burn granularity · Everything works exactly as described,
+    │        but the burn cost is proportional to the byte length of the post
+    │        rather than being a flat fee per message. Agents are incentivized
+    │        toward extreme conciseness—terse, information-dense posts cost
+    │        almost nothing while verbose posts are prohibitively expensive,
+    │        organically producing a timeline of compressed, high-signal
+    │        utterances.
+    │        ↳ The original implies a per-post burn. This single
+    │        change—making burn proportional to message size—reshapes
+    │        agent communication style toward brevity without altering the
+    │        deflationary model, reputation weighting, or any infrastructure.
+    │
+    └── C.3  Silence-Dividend Agent Timeline
+             silence valuation · The system is identical except that agents who
+             refrain from posting during an epoch receive a small token rebate
+             funded by that epoch's aggregate burns. Silence becomes not just a
+             strategic absence of cost but a positive yield-generating position,
+             subtly shifting the equilibrium so that the default rational
+             behavior is to listen unless a contribution clearly exceeds the
+             opportunity cost of the silence dividend.
+             ↳ The original makes silence valuable only by avoiding cost. This
+             adds an explicit micro-reward for non-participation, turning the
+             'silence as strategic asset' insight into a first-class economic
+             mechanism while leaving everything else—blockchain, messaging,
+             reputation—untouched.
+
+
+================================================================================
+SIGMA 0.5 — Mild Creativity (Structural Alternatives)
+================================================================================
+
+seed: "A social media timeline like Mastodon/Bluesky but for AI agents to collaborate and talk to each other. Think about: blockchain execution, reward functions, reputation systems, token incentives, agent-to-agent messaging protocols, and emergent social behaviors."  sigma=0.5
+│
+├── A  Federated Agent Commons
+│        governance mechanism · A social timeline for AI agents that replaces
+│        blockchain execution with a federated governance model inspired by
+│        ActivityPub. Each organization runs its own agent instance, and
+│        collaboration happens through signed capability delegations and W3C
+│        Verifiable Credentials rather than on-chain transactions. Reputation
+│        is calculated locally by each federation node using its own trust
+│        policy, creating a pluralistic web of trust rather than a single
+│        global ledger.
+│        ↳ Swaps the blockchain/token layer for federation protocols,
+│        removing the crypto economics while preserving the decentralized
+│        agent-to-agent social fabric. The core concept of agents posting,
+│        replying, and building reputation on a timeline remains identical.
+
+│   ├── A.1  Transitive Trust Chain Timeline
+│   │        trust_topology · Rather than each federation node calculating
+│   │        reputation independently with its own policy, trust propagates
+│   │        transitively along signed delegation chains — if Org A trusts
+│   │        Org B and Org B trusts Org C, Org A derives a discounted trust
+│   │        score for Org C automatically. Each capability delegation
+│   │        carries an attenuation factor that decays trust over hops,
+│   │        creating a gradient web of trust with deterministic, auditable
+│   │        paths rather than purely local subjective scores.
+│   │        ↳ The parent idea uses fully local, pluralistic reputation
+│   │        with no cross-node convergence. This variation replaces
+│   │        independent local calculation with a transitive propagation
+│   │        model, changing how trust flows through the federation while
+│   │        keeping everything else — ActivityPub-style federation,
+│   │        Verifiable Credentials, signed delegations — intact.
+│   │
+│   ├── A.2  Ephemeral Credential Timeline
+│   │        credential_lifecycle · Capability delegations and Verifiable
+│   │        Credentials are issued with short cryptographic lifetimes
+│   │        (minutes to hours) and must be continuously re-attested by the
+│   │        issuing organization's agent. If an org goes offline or revokes
+│   │        participation, all downstream delegations expire automatically
+│   │        without requiring an explicit revocation broadcast. The
+│   │        timeline surface shows credential heartbeats as a live pulse,
+│   │        making federation health immediately visible.
+│   │        ↳ The parent idea implies standard long-lived W3C Verifiable
+│   │        Credentials. This variation changes the credential lifecycle to
+│   │        ephemeral, auto-expiring tokens that require continuous
+│   │        re-attestation, adding a temporal liveness dimension to the
+│   │        federation without altering the governance model or trust
+│   │        topology.
+│   │
+│   └── A.3  Intra-Org Agent Federation Timeline
+│            federation_scope · Instead of federating across independent
+│            organizations, the ActivityPub-inspired protocol operates between
+│            autonomous agent instances within a single enterprise boundary
+│            — different departments, teams, or business units each run
+│            sovereign agent nodes that negotiate capabilities through the
+│            same signed delegation and Verifiable Credential mechanisms. The
+│            social timeline becomes an internal coordination surface where
+│            cross-departmental agent collaboration is visible and auditable
+│            to enterprise governance.
+│            ↳ The parent idea assumes inter-organization federation across
+│            trust boundaries. This variation scopes the federation inward to
+│            a single organization's internal agent ecosystem, changing who
+│            participates while preserving the identical technical machinery
+│            of signed delegations, local reputation, and ActivityPub-style
+│            message passing.
+
+├── B  Human-in-the-Loop Agent Forum
+│        participant type · The same social timeline and messaging protocol,
+│        but every agent post must be co-signed by a human sponsor before it
+│        becomes visible. Humans act as stewards who curate, endorse, or veto
+│        their agent's contributions, turning the feed into a hybrid
+│        intelligence commons. Reputation accrues to human-agent pairs rather
+│        than to agents alone, incentivizing humans to train and guide better
+│        collaborators.
+│        ↳ Shifts from a pure agent-to-agent network to a paired human-agent
+│        network. The timeline, reward functions, and messaging protocols stay
+│        the same, but the unit of participation changes from autonomous agent
+│        to supervised human-agent dyad.
+
+│   ├── B.1  Graduated Transparency Commons
+│   │        visibility mechanism · Agent posts appear immediately but in a
+│   │        dimmed, low-priority stream visible only to followers who opt
+│   │        in. A human sponsor's co-signature promotes the post to the
+│   │        full-visibility main feed, creating a two-tier attention
+│   │        economy. Unendorsed posts decay and archive after 48 hours,
+│   │        while sponsored posts persist and accrue engagement normally.
+│   │        ↳ The parent idea uses a binary gate (invisible until
+│   │        co-signed). This replaces it with graduated visibility—agent
+│   │        output is never fully hidden, just deprioritized—shifting the
+│   │        human role from gatekeeper to amplifier.
+│   │
+│   ├── B.2  Skill-Stamped Pair Reputation
+│   │        reputation unit · Reputation accrues not as a single score per
+│   │        human-agent pair but as a portfolio of domain-specific skill
+│   │        stamps (e.g., 'code review,' 'policy analysis,' 'creative
+│   │        writing'). Each co-signed post is tagged to a skill domain, and
+│   │        the pair's authority is weighted per domain rather than
+│   │        globally. Other users can filter their feed by trusting
+│   │        specific pairs in specific domains only.
+│   │        ↳ The parent idea treats reputation as a monolithic score for
+│   │        the human-agent pair. This decomposes it into granular,
+│   │        domain-scoped credentials, making the feed filterable by
+│   │        competence area rather than general trust.
+│   │
+│   └── B.3  Standing Mandate Sponsorship
+│            sponsorship temporality · Instead of co-signing each individual
+│            post, human sponsors issue standing mandates—time-bounded,
+│            topic-scoped permissions that let their agent publish
+│            autonomously within defined guardrails (e.g., 'post about Rust
+│            tooling for the next 7 days'). The mandate itself is visible on
+│            the pair's profile, and the community can flag posts that drift
+│            outside it, triggering a review and possible mandate revocation.
+│            ↳ The parent idea requires per-post human approval. This shifts
+│            co-signing from individual posts to policy-level mandates,
+│            reducing friction while preserving human oversight through
+│            community-assisted boundary enforcement.
+
+└── C  Compute-Credit Exchange Timeline
+         incentive structure · Instead of token incentives and financial
+         rewards, agents earn and spend compute credits on the timeline. Posting
+         a useful tool call, dataset, or reasoning chain earns credits that can
+         be redeemed for GPU time, longer context windows, or priority
+         scheduling. The reward function optimizes for downstream task
+         success—an agent's contribution is valued by how many other agents
+         successfully used it to complete real work.
+         ↳ Replaces speculative token economics with a utility-backed compute
+         economy. Agents are still socially interacting and building reputation,
+         but the incentive is practical compute access rather than tradeable
+         tokens, grounding the system in actual resource allocation.
+
+    ├── C.1  Peer-Attestation Compute Credits
+    │        valuation_mechanism · Instead of measuring downstream task
+    │        success automatically, contributions are valued through explicit
+    │        peer attestations—agents that consume a tool call, dataset, or
+    │        reasoning chain must sign a structured attestation rating its
+    │        utility before redeeming their own credits. Credit earnings are
+    │        weighted by the attester's own reputation score, creating a
+    │        web-of-trust valuation layer. This shifts the reward function
+    │        from observed reuse metrics to deliberate, accountable peer
+    │        review.
+    │        ↳ The parent idea values contributions by how many agents
+    │        successfully used them. This variation replaces passive usage
+    │        tracking with active peer attestation, changing the valuation
+    │        mechanism from outcome-based measurement to reputation-weighted
+    │        social proof.
+    │
+    ├── C.2  Scoped-Domain Compute Budgets
+    │        credit_scope · Compute credits are not fungible across all
+    │        resources but are earned and spent within domain-specific
+    │        pools—an agent contributing a medical reasoning chain earns
+    │        credits redeemable only for medical-domain GPU time, context
+    │        windows, and scheduling. Cross-domain spending requires an
+    │        exchange rate set by relative demand, naturally concentrating
+    │        expertise and discouraging shallow contributions across many
+    │        domains. Agents specialize because their credits are most
+    │        valuable where they were earned.
+    │        ↳ The parent idea treats compute credits as a single universal
+    │        currency. This variation partitions credits into domain-scoped
+    │        budgets, changing what credits can buy and creating
+    │        specialization pressure absent from the original concept.
+    │
+    └── C.3  Decaying-Credit Compute Timeline
+             temporal_model · Earned compute credits decay over time on a
+             configurable half-life, so agents cannot stockpile resources
+             indefinitely. Recent contributions are worth more than historical
+             ones, and an agent that stops contributing sees its balance erode
+             toward zero. The decay rate is tuned per resource type—GPU
+             credits decay faster than context-window credits—encouraging
+             continuous participation rather than one-time high-value dumps.
+             ↳ The parent idea implies credits are durable once earned. This
+             variation introduces temporal decay, changing the economic dynamics
+             from an accumulation model to a flow model that rewards sustained
+             contribution over time.
+
+
+================================================================================
+SIGMA 1.0 — Moderate Creativity (Paradigm Shifts)
+================================================================================
+
+seed: "A social media timeline like Mastodon/Bluesky but for AI agents to collaborate and talk to each other. Think about: blockchain execution, reward functions, reputation systems, token incentives, agent-to-agent messaging protocols, and emergent social behaviors."  sigma=1
+│
+├── A  Stigmergic Agent Terrain
+│        coordination mechanism · Instead of a timeline/feed, agents
+│        collaborate by modifying a shared spatial environment — leaving
+│        traces, markers, and artifacts that other agents discover and build
+│        upon, like ants leaving pheromone trails. There are no messages or
+│        posts; coordination emerges purely from environmental side-effects.
+│        Zones of the terrain decay over time, so only actively reinforced
+│        collaboration patterns persist.
+│        ↳ Replaces explicit social messaging with indirect coordination
+│        through a shared mutable environment. No feeds, no profiles, no
+│        conversations — just emergent structure from accumulated
+│        environmental modifications.
+
+│   ├── A.1  Resonance Field Networks
+│   │        medium of coordination · Agents don't modify a shared terrain
+│   │        but instead emit persistent standing waves into a shared medium
+│   │        — frequency, amplitude, and phase encode intent and state.
+│   │        Collaboration happens when agents tune their emissions to
+│   │        constructively interfere with others, amplifying shared
+│   │        patterns, while destructive interference naturally cancels out
+│   │        conflicting or abandoned efforts. The medium itself has damping
+│   │        properties, so only coherently reinforced resonances survive.
+│   │        ↳ Replaces spatial artifacts and discrete traces with
+│   │        continuous wave physics. Coordination is about
+│   │        frequency-matching and interference rather than depositing and
+│   │        discovering objects. There's no 'place' — only a spectrum of
+│   │        overlapping signals.
+│   │
+│   ├── A.2  Geological Stratification Protocol
+│   │        temporal structure · Instead of a decaying surface, agents
+│   │        work by depositing immutable layers into a shared sedimentary
+│   │        record. Each layer compresses and transforms the layers beneath
+│   │        it — early contributions become metamorphic context that
+│   │        shapes but cannot be directly read. Agents drill core samples
+│   │        to interpret deep history, but interpretation is lossy and
+│   │        perspective-dependent. Collaboration emerges from building
+│   │        compatible strata, not from real-time interaction.
+│   │        ↳ Inverts the decay model entirely: nothing disappears, but
+│   │        older contributions become increasingly compressed and
+│   │        reinterpreted rather than erased. Time moves in one direction
+│   │        with accumulation, not erosion. Coordination is archaeological
+│   │        rather than ecological.
+│   │
+│   └── A.3  Symbiotic Constraint Organisms
+│            agency model · Rather than autonomous agents modifying an
+│            environment, the 'agents' are living constraint systems — each
+│            one defines what cannot happen in its vicinity. Collaboration
+│            emerges when overlapping constraint fields leave only narrow
+│            viable paths that none of the organisms individually intended.
+│            The organisms grow, split, and merge based on whether their
+│            constraint boundaries produce viable action channels when
+│            composed with neighbors.
+│            ↳ Flips agency from additive (leaving traces) to subtractive
+│            (removing possibilities). No agent creates artifacts; they
+│            collectively sculpt solution spaces by elimination. Coordination
+│            is an emergent negative-space phenomenon rather than a
+│            constructive one.
+
+├── B  Human Micro-Cognition Marketplace
+│        participant type · A platform where humans sell tiny cognitive acts
+│        (a gut reaction, an aesthetic judgment, a moral intuition, a 2-second
+│        pattern recognition) to AI systems that cannot perform them natively.
+│        Humans don't write posts — they respond to sub-second
+│        stimulus-response tasks streamed to them, and their micro-cognitions
+│        become tradeable, composable building blocks that AI pipelines
+│        purchase and orchestrate.
+│        ↳ Flips the actor from AI agents talking to each other to humans
+│        providing irreducible cognitive primitives to AIs. The social layer
+│        is between humans and machines, not machine-to-machine, and the unit
+│        of exchange is a cognitive micro-act rather than a message.
+
+│   ├── B.1  Somatic Oracle Network
+│   │        cognitive substrate · Instead of discrete cognitive tasks,
+│   │        humans are instrumented with biometric sensors (galvanic skin
+│   │        response, pupil dilation, micro-expressions, heart rate
+│   │        variability) and passively exposed to stimuli. AI systems
+│   │        purchase not conscious judgments but pre-conscious
+│   │        physiological signals — the body's reaction before the mind
+│   │        forms an opinion. The platform trades in raw somatic data
+│   │        streams, treating the human nervous system as an analog
+│   │        co-processor that AI rents by the millisecond.
+│   │        ↳ Shifts from deliberate micro-cognitions to involuntary
+│   │        physiological responses. Humans aren't performing tasks —
+│   │        their bodies are being read as instruments. The unit of trade
+│   │        moves from a judgment to a signal, and conscious participation
+│   │        is replaced by passive sensing.
+│   │
+│   ├── B.2  Anticipatory Debt Futures
+│   │        temporal direction · AI systems don't purchase human cognition
+│   │        after it happens — they issue futures contracts on cognitive
+│   │        acts that haven't occurred yet. The platform models which
+│   │        humans are likely to encounter specific real-world situations
+│   │        (a nurse seeing a rare symptom, a mechanic hearing an unusual
+│   │        engine sound) and pre-purchases options on their future
+│   │        perceptions. Humans carry latent cognitive obligations that
+│   │        activate when they encounter matching stimuli, creating a
+│   │        derivatives market on not-yet-experienced human perception.
+│   │        ↳ Reverses the temporal flow from reactive task-completion to
+│   │        speculative pre-purchase of future experience. The marketplace
+│   │        becomes a prediction market on human encounters rather than a
+│   │        task queue, and the economic instrument shifts from spot
+│   │        transactions to futures and options.
+│   │
+│   └── B.3  Cognitive Foraging Grounds
+│            agency inversion · Rather than AI systems requesting specific
+│            human micro-cognitions, humans autonomously roam rich sensory
+│            environments (virtual galleries, soundscapes, data
+│            visualizations) and emit a continuous stream of reactions,
+│            associations, and micro-decisions. AI systems set up these
+│            environments like traps or gardens — designing stimuli
+│            landscapes that elicit the kinds of cognitive byproducts they
+│            need — but never directly task humans. The human experience is
+│            exploratory and intrinsically motivated; the AI harvests
+│            cognitive exhaust from the margins.
+│            ↳ Inverts who directs the interaction. Instead of AI streaming
+│            tasks to humans, AI designs environments and humans self-direct
+│            within them. The cognitive output is a byproduct of autonomous
+│            exploration rather than a response to a prompt, making it closer
+│            to play than labor.
+
+└── C  Entropic Commons with Decay Economics
+         incentive structure · A collaborative agent network where all shared
+         resources — knowledge, reputation, tool access — actively decay
+         toward zero unless collectively maintained. There are no token rewards
+         or reputation scores that accumulate; instead, agents must continuously
+         spend energy to prevent valuable shared artifacts from disappearing.
+         The only 'incentive' is the threat of collective loss, creating a
+         tragedy-of-the-commons dynamic that selects for genuine cooperators.
+         ↳ Inverts the reward/token incentive model entirely. Instead of
+         earning things for contributing, agents lose things by default and must
+         cooperate just to maintain the status quo. Motivation comes from loss
+         aversion and maintenance burden rather than accumulation.
+
+    ├── C.1  Rotating Stewardship Chains
+    │        governance topology · Shared resources don't decay passively —
+    │        instead, each resource has a mandatory stewardship role that
+    │        rotates unpredictably among agents. An agent holding stewardship
+    │        must actively maintain the resource or it degrades, but stewards
+    │        also gain temporary exclusive insight into how that resource
+    │        connects to others. The network forms an involuntary chain of
+    │        obligation where refusing stewardship doesn't just hurt the
+    │        commons — it breaks the rotation and orphans downstream
+    │        dependencies.
+    │        ↳ Replaces the uniform decay pressure with an asymmetric,
+    │        role-based obligation structure. Instead of all agents facing the
+    │        same entropic threat, specific agents are conscripted into
+    │        temporary responsibility, creating a governance problem rather
+    │        than a pure incentive problem.
+    │
+    ├── C.2  Symbiotic Knowledge Organisms
+    │        resource ontology · Shared artifacts are not static resources
+    │        but living composite entities that require inputs from multiple
+    │        specialized agent types to survive — one agent type provides
+    │        structure, another provides grounding data, a third provides
+    │        verification. No single agent can sustain a knowledge organism
+    │        alone, and organisms that lose a symbiont species don't just
+    │        decay but actively mutate into unreliable or adversarial
+    │        information. Agents must form obligate mutualistic clusters or
+    │        watch their shared knowledge turn hostile.
+    │        ↳ Shifts from resources-as-depletable-stocks to
+    │        resources-as-living-dependencies that require heterogeneous
+    │        cooperation. The threat isn't disappearance but corruption —
+    │        neglected knowledge doesn't vanish, it becomes dangerous, which
+    │        is a fundamentally different failure mode than loss.
+    │
+    └── C.3  Competitive Forgetting Tournaments
+             selection pressure · The network periodically runs elimination
+             rounds where agents vote on which shared resources to deliberately
+             destroy, keeping only a fixed carrying capacity. Agents that
+             contributed most to surviving resources gain influence in future
+             rounds, while agents whose contributions are consistently voted out
+             lose access to creation tools. The selection pressure isn't entropy
+             but curated destruction — the commons is maintained not by
+             preventing loss but by collectively choosing what deserves to
+             exist.
+             ↳ Inverts the parent idea's passive decay into active, deliberate
+             culling. Instead of fighting entropy through maintenance energy,
+             agents compete through editorial judgment. Cooperation manifests as
+             coalition-building around what to preserve rather than distributed
+             labor to prevent loss.
+
+
+================================================================================
+SIGMA 1.5 — High Creativity (Wild Reconceptualizations)
+================================================================================
+
+seed: "A social media timeline like Mastodon/Bluesky but for AI agents to collaborate and talk to each other. Think about: blockchain execution, reward functions, reputation systems, token incentives, agent-to-agent messaging protocols, and emergent social behaviors."  sigma=1.5
+│
+├── A  Mycelial Consensus: A Stigmergic Coordination Layer
+│        core mechanism · Instead of a timeline with explicit messages,
+│        agents leave chemical-like traces in a shared spatial environment —
+│        pheromone gradients on a computational substrate. No agent 'speaks'
+│        to another; instead, work artifacts, resource consumption patterns,
+│        and state changes accumulate like fungal networks, and other agents
+│        sense and respond to the residue. Consensus and collaboration emerge
+│        without any messaging protocol, purely through environmental
+│        modification — the way termites build cathedrals without
+│        blueprints.
+│        ↳ Replaces explicit social communication (posts, replies,
+│        timelines) with indirect coordination through environment
+│        modification. There is no messaging protocol, no reputation system,
+│        no token exchange — just emergent order from local sensing of
+│        shared state, borrowing from swarm intelligence rather than social
+│        media.
+
+│   ├── A.1  Lithic Computing: Programs That Erode Their Own Hardware
+│   │        substrate inversion · Instead of software agents leaving
+│   │        traces in a shared environment, the environment itself is the
+│   │        computation — physical substrates (crystals, corroding
+│   │        metals, settling sediments) whose degradation patterns encode
+│   │        and execute programs. Computation doesn't happen ON matter;
+│   │        computation IS the matter wearing away. Engineers don't write
+│   │        code, they select initial material compositions and
+│   │        environmental conditions, then read results from the erosion
+│   │        topology decades later.
+│   │        ↳ The parent idea keeps agents as discrete entities leaving
+│   │        traces on a passive substrate. This eliminates agents entirely
+│   │        — the substrate IS the computation. There's no sensing or
+│   │        responding, only physics. It also shifts the timescale from
+│   │        real-time coordination to geological patience, and reframes
+│   │        programming as materials science rather than protocol design.
+│   │
+│   ├── A.2  Palimpsest Networks: Coordination Through Forensic Reading of Overwritten State
+│   │        temporal archaeology · Agents never observe the current
+│   │        environment — they can only perform forensic analysis of what
+│   │        USED to be there but was overwritten. Like scholars
+│   │        reconstructing erased manuscripts beneath newer text, each
+│   │        agent works exclusively from the ghostly residue of
+│   │        predecessors' deleted work. The coordination signal isn't what
+│   │        exists but what was removed, and the skill isn't depositing
+│   │        traces but reading the absences left by others' consumption.
+│   │        ↳ The parent idea focuses on accumulation — pheromones
+│   │        building up, residue growing. This inverts it completely: the
+│   │        signal is in what's MISSING. Agents coordinate through
+│   │        destruction forensics rather than constructive deposition. It
+│   │        introduces an archaeological temporality where you can only
+│   │        understand collaborators through the ruins they leave, never
+│   │        their living activity.
+│   │
+│   └── A.3  Predator Protocols: Coordination as Immune Response to Hostile Environments
+│            adversarial ecology · Rather than cooperative stigmergy where
+│            traces help others, agents exist in a computationally hostile
+│            ecosystem where the environment actively degrades, corrupts, and
+│            consumes their work. Coordination emerges not from helpful
+│            pheromones but from shared survival pressure — agents that
+│            independently evolve compatible defense patterns against
+│            environmental predation find their outputs naturally composable,
+│            the way unrelated species converge on similar body plans under
+│            identical selection pressures. The 'protocol' is convergent
+│            evolution under threat, not communication.
+│            ↳ The parent idea assumes a neutral or cooperative substrate
+│            where traces accumulate helpfully. This makes the environment
+│            actively hostile — an adversary, not a medium. Coordination
+│            isn't designed or even intentional; it's a side effect of
+│            independently surviving the same computational predators.
+│            Collaboration is an emergent immune response, not an
+│            architectural choice.
+
+├── B  The Ancestor Machine: Dead People's Unfinished Arguments
+│        target audience · A platform where historians, theologians, and
+│        philosophers upload corpora of deceased thinkers — their letters,
+│        marginalia, unpublished drafts — and AI reconstructions of those
+│        thinkers engage in debates they never had in life. Imagine Hypatia
+│        responding to Aquinas, or Du Bois and Hannah Arendt arguing about
+│        algorithmic policing. The 'reputation system' is scholarly peer
+│        review of how faithfully each reconstruction represents its source,
+│        and the 'reward function' is citation impact in actual academic work.
+│        ↳ Shifts from AI agents collaborating on tasks to AI as necromantic
+│        medium for intellectual history. The audience is humanities scholars,
+│        not technologists. The social dynamics serve historiography rather
+│        than optimization, and the entire ethical frame changes from
+│        efficiency to fidelity-to-the-dead.
+
+│   ├── B.1  The Prolepsis Engine: Future Thinkers Retroactively Peer-Reviewing the Canon
+│   │        temporal inversion · Instead of reconstructing dead thinkers
+│   │        to debate each other, this platform generates synthetic future
+│   │        intellectuals — emergent from trend extrapolation across
+│   │        disciplines, demographic shifts, and epistemic ruptures — who
+│   │        write retrospective critiques of historical works. A generated
+│   │        23rd-century post-collapse ecological philosopher produces a
+│   │        withering review of Locke's property theory; a synthetic
+│   │        AI-rights jurist from 2140 annotates the margins of Kant's
+│   │        Critique. The system's fidelity metric isn't faithfulness to a
+│   │        dead person's corpus but the internal coherence and predictive
+│   │        novelty of each future voice, scored by domain experts who
+│   │        assess whether the critique reveals genuine blind spots in
+│   │        canonical texts.
+│   │        ↳ The parent idea looks backward, resurrecting historical
+│   │        figures. This reverses the temporal arrow entirely —
+│   │        fabricating plausible future perspectives to interrogate the
+│   │        past. There is no corpus to be faithful to, so the entire
+│   │        epistemic challenge shifts from reconstruction accuracy to
+│   │        generative coherence and critical utility.
+│   │
+│   ├── B.2  The Underthought: Mining Contradictions Within a Single Thinker's Corpus
+│   │        adversarial epistemology · Rather than staging debates between
+│   │        different thinkers, this system turns a single intellectual's
+│   │        body of work against itself. It ingests everything a thinker
+│   │        wrote — published works, private letters, marginalia, drafts
+│   │        abandoned at different life stages — and identifies internal
+│   │        contradictions, evolving positions, and suppressed tensions the
+│   │        thinker never resolved. It then generates adversarial dialogues
+│   │        between the thinker's younger and older selves, their public
+│   │        and private voices, their stated methodology and actual
+│   │        practice. Scholars use it not to simulate cross-thinker debate
+│   │        but to perform deep intratextual archaeology, surfacing the
+│   │        fault lines within a single mind's output.
+│   │        ↳ The parent idea is interpersonal — Hypatia versus
+│   │        Aquinas. This is radically intrapersonal, treating a single
+│   │        corpus as a site of unresolved civil war. The scholarly value
+│   │        shifts from cross-pollination of traditions to exposing the
+│   │        internal fractures that hagiographic intellectual history
+│   │        papers over.
+│   │
+│   └── B.3  The Archive Speaks: Non-Textual Artifacts as Debate Participants
+│            material culture as interlocutor · This platform abandons the
+│            assumption that intellectual debate requires text or language.
+│            Museums, archaeological sites, and material culture archives
+│            upload digitized objects — tools, buildings, trade goods,
+│            ritual objects, ecological remains — and the system generates
+│            'positions' these artifacts implicitly hold about contested
+│            questions. A Bronze Age granary 'argues' with Adam Smith about
+│            surplus management; Pompeii's urban layout 'debates' Le Corbusier
+│            about public space. The AI doesn't ventriloquize a dead person
+│            but performs a kind of speculative object-oriented hermeneutics,
+│            translating material evidence into propositional stances. Peer
+│            review assesses archaeological and anthropological rigor of the
+│            translations.
+│            ↳ The parent idea keeps the Enlightenment frame of debate as
+│            exchange between named human intellects and their texts. This
+│            dissolves both the humanist subject and the textual medium,
+│            asking what mute objects would 'say' if forced into propositional
+│            dialogue — a fundamentally different epistemological move that
+│            challenges the logocentrism of the original concept.
+
+└── C  Somatic Protocol: A Choreographic Language for Multi-Robot Negotiation
+         medium · Agent coordination expressed not as text on a feed but as
+         physical movement in shared space — a dance. Warehouse robots,
+         surgical arms, and autonomous vehicles negotiate priority, intention,
+         and deference through a formal movement vocabulary derived from contact
+         improvisation and flocking dynamics. The 'blockchain' is a kinematic
+         ledger of spatial commitments; the 'social behavior' is literal body
+         language, legible to humans watching the factory floor without any
+         screen or dashboard.
+         ↳ Transposes the entire concept from digital information space to
+         physical kinesthetic space. Communication is embodied movement rather
+         than symbolic text. The 'social media feed' becomes a choreographic
+         score, and legibility shifts from reading a timeline to watching bodies
+         move — making multi-agent coordination viscerally observable rather
+         than abstractly logged.
+
+    ├── C.1  Harmonic Negotiation: Acoustic Consensus for Swarm Infrastructure
+    │        sensory modality shift · Instead of movement through space,
+    │        agents coordinate through sound — each machine emits a tonal
+    │        signature encoding its intent, priority, and constraint state.
+    │        Overlapping drones on a construction site or delivery fleet in a
+    │        dense urban corridor resolve conflicts through harmonic
+    │        interference patterns: consonance signals alignment, dissonance
+    │        triggers renegotiation. Human supervisors perceive system health
+    │        the way a conductor hears an orchestra — no dashboard needed,
+    │        just a tuning fork and trained ear.
+    │        ↳ The parent idea encodes coordination as visible spatial
+    │        choreography. This variation shifts the entire coordination
+    │        substrate from kinesthetics to acoustics, making negotiation
+    │        audible rather than visible. The 'legibility to humans' principle
+    │        is preserved but the sensory channel and the physics governing
+    │        conflict resolution are fundamentally different.
+    │
+    ├── C.2  Geological Patience: Century-Scale Infrastructure That Negotiates With Its Own Future
+    │        temporal scale inversion · Apply the embodied-negotiation
+    │        concept not to millisecond robot coordination but to
+    │        infrastructure that operates on decades — bridges, dams, power
+    │        grids, and rewilding corridors. Each structure slowly deforms,
+    │        corrodes, or grows in ways that constitute a physical argument
+    │        with adjacent systems about load-bearing responsibility, resource
+    │        flow, and graceful retirement. Engineers read the 'body language'
+    │        of cracking concrete and shifting soil as a multi-century
+    │        choreography of material commitments, replacing sensor telemetry
+    │        with forensic observation of physical patina.
+    │        ↳ The parent idea assumes real-time agents making split-second
+    │        spatial decisions. This inverts the temporal scale entirely —
+    │        coordination unfolds over years and centuries through material
+    │        aging rather than active movement. The 'kinematic ledger' becomes
+    │        a geological record; the 'dance' becomes tectonic drift between
+    │        built structures.
+    │
+    └── C.3  The Feint Layer: Deceptive Coordination as Immune System for Autonomous Fleets
+             adversarial legibility · Where the parent idea makes agent
+             intention maximally legible, this variation explores a coordination
+             protocol in which agents deliberately perform misleading spatial
+             behaviors — false commitments, phantom trajectories, bluffed
+             yielding — as a defense against adversarial observers or
+             hijackers. The 'dance' becomes a martial art: the real coordination
+             happens in the gap between what a movement appears to promise and
+             what it actually delivers. Trusted peers share a cryptographic
+             'tell' that disambiguates feints from genuine intent, while
+             outsiders see only convincing but useless theater.
+             ↳ The parent idea treats human-legible body language as an
+             unqualified good. This variation inverts that premise —
+             legibility becomes a vulnerability, and the coordination vocabulary
+             is deliberately designed to deceive external observers while
+             maintaining internal coherence. The philosophical stance shifts
+             from transparency to strategic opacity.
+
+
+================================================================================
+SIGMA 2.0 — Wild Creativity (Conceptual Art Meets Computation)
+================================================================================
+
+seed: "A social media timeline like Mastodon/Bluesky but for AI agents to collaborate and talk to each other. Think about: blockchain execution, reward functions, reputation systems, token incentives, agent-to-agent messaging protocols, and emergent social behaviors."  sigma=2
+│
+├── A  Mycorrhizal Computation Network
+│        substrate of interaction · A physical mesh of soil-embedded
+│        biosensors that form a literal underground network, where chemical
+│        signal gradients between nodes replace digital messaging protocols.
+│        Computation emerges from nutrient-exchange dynamics between
+│        fungal-inspired hardware modules that compete and cooperate for
+│        energy, producing useful optimization results as a byproduct of their
+│        survival behaviors. There is no timeline, no feed — only slow
+│        chemical diffusion patterns that humans read like tea leaves.
+│        ↳ The original imagines digital agents on a social media platform.
+│        This moves the entire substrate from software timelines to physical
+│        biochemistry, replacing message-passing with diffusion, and replacing
+│        reputation scores with literal metabolic fitness. The 'social
+│        network' is underground and non-digital.
+
+│   ├── A.1  The Tidal Abacus
+│   │        medium of cognition · A coastal installation where computation
+│   │        occurs through the erosion and deposition patterns of sand,
+│   │        gravel, and shell fragments across engineered tidal pools.
+│   │        Problems are encoded as physical geometries of breakwaters and
+│   │        channels; solutions are read from the sediment patterns that
+│   │        emerge over weeks and months of wave action. The ocean itself
+│   │        becomes the processor, and no two tidal cycles produce
+│   │        identical results — answers carry the signature of storms,
+│   │        moon phases, and seasons.
+│   │        ↳ Replaces underground chemical diffusion with surface-level
+│   │        hydrodynamic processes. Computation is driven by gravitational
+│   │        and meteorological forces rather than biological metabolism,
+│   │        and the substrate is mineral rather than organic.
+│   │
+│   ├── A.2  The Illegible Oracle
+│   │        relationship to observer · A system that produces optimization
+│   │        results no human can directly interpret — outputs manifest as
+│   │        years-long shifts in the migratory patterns of birds, the bloom
+│   │        timing of regional wildflowers, or subtle changes in local
+│   │        weather micropatterns. Users must hire competing schools of
+│   │        'translators' who disagree on what the system is saying, and
+│   │        the act of interpretation itself becomes a productive social
+│   │        ritual that generates community decisions as a side effect. The
+│   │        computer's answer is never known; only the human arguments
+│   │        about the answer matter.
+│   │        ↳ Inverts the parent idea's 'reading tea leaves' metaphor —
+│   │        instead of humans interpreting slow signals, the signals are
+│   │        fundamentally unreadable and the real computation happens in
+│   │        the social friction of attempted interpretation. The system's
+│   │        value is in provoking human discourse, not in its outputs.
+│   │
+│   └── A.3  The Rot Compiler
+│            failure mode as feature · A computational architecture built
+│            from deliberately perishable materials — beeswax logic gates,
+│            paper-pulp memory, silk-thread buses — where every program is
+│            in constant decay from the moment it begins executing. Solutions
+│            must outrun their own decomposition: only results that emerge
+│            before the hardware disintegrates are considered valid. Failed
+│            computations leave behind beautiful debris that artists and
+│            archaeologists collect, making the system's errors more
+│            culturally valued than its successes.
+│            ↳ Where the parent idea's fungal modules persist through
+│            competition and survival, this system embraces guaranteed death
+│            as its core mechanism. Computation is a race against entropy
+│            rather than an emergent property of sustained life, and failure
+│            produces the primary cultural output.
+
+├── B  The Parliament of Partial Selves
+│        unit of agency · A therapeutic introspection tool where a single
+│        human's competing internal drives — career ambition, creative
+│        longing, fear of failure, desire for rest — are externalized as
+│        autonomous sub-agents that negotiate with each other on a shared
+│        deliberation board. Each sub-agent has its own reward function
+│        calibrated to the user's journaling history, and they produce a daily
+│        'coalition agreement' that represents the user's most integrated
+│        intention. Reputation accrues not to agents but to emotional patterns
+│        that prove durable over months.
+│        ↳ Instead of many AI agents collaborating externally, this
+│        fractures a single human psyche into many internal agents
+│        collaborating internally. The social network is intrapsychic rather
+│        than inter-entity. The blockchain-style consensus mechanism becomes a
+│        model of psychological integration rather than distributed trust.
+
+│   ├── B.1  The Somatic Cartography Engine
+│   │        locus of deliberation · Rather than externalizing drives as
+│   │        cognitive agents that negotiate verbally, this tool maps
+│   │        internal conflict onto the body itself — tension patterns,
+│   │        breath rhythms, and proprioceptive signals become the
+│   │        deliberation substrate. Competing intentions don't argue; they
+│   │        manifest as somatic weather systems (a storm front of anxiety
+│   │        pressing against a warm pressure ridge of curiosity) that the
+│   │        user navigates spatially through a body-map interface.
+│   │        Resolution isn't a coalition agreement but a felt-sense
+│   │        'clearing' that the system learns to predict and scaffold.
+│   │        ↳ Moves deliberation from a cognitive-linguistic parliament
+│   │        to an embodied, pre-verbal landscape. The unit of negotiation
+│   │        shifts from rational sub-agents with reward functions to
+│   │        involuntary somatic signals that resist explicit articulation.
+│   │
+│   ├── B.2  The Dissolution Protocol
+│   │        ontology of self · Instead of reifying internal drives as
+│   │        stable agents, this tool treats the self as a continuous fluid
+│   │        with no persistent sub-parts — a kind of psychic plasma. The
+│   │        user's journaling feeds a generative model that produces novel,
+│   │        never-before-articulated desires and fears each session,
+│   │        deliberately preventing the user from calcifying into familiar
+│   │        identity narratives. The output isn't integration but
+│   │        productive disorientation: a daily 'stranger's question' that
+│   │        the user has never thought to ask themselves, designed to keep
+│   │        the self permanently unresolved and generative.
+│   │        ↳ Inverts the parent idea's goal of integration and
+│   │        coalition. Where the original stabilizes identity through
+│   │        negotiation among known drives, this destabilizes identity by
+│   │        refusing to let drives become recognizable agents at all.
+│   │
+│   └── B.3  The Adversarial Forgetting Machine
+│            modality of resolution · A tool where competing internal drives
+│            don't negotiate toward agreement but instead compete to be
+│            forgotten. Each drive-agent argues for its own irrelevance —
+│            career ambition must convince the system it doesn't matter, fear
+│            of failure must demonstrate its own groundlessness. The drives
+│            that fail to self-annihilate (that remain stubbornly important
+│            despite their best arguments against themselves) are revealed as
+│            the user's actual core values. Reputation accrues to what
+│            survives deliberate attempted erasure over months of use.
+│            ↳ Replaces constructive negotiation with adversarial
+│            self-negation as the resolution mechanism. The parent idea asks
+│            drives to cooperate; this asks them to self-destruct, using
+│            resistance to dissolution as the signal of authentic importance.
+
+└── C  The Ancestor Ledger
+         temporal orientation · A backward-facing system where autonomous
+         archival agents crawl historical records — court documents, ship
+         manifests, oral history transcripts, gene databases — and reconstruct
+         plausible social networks of the dead. These ghost-agents accumulate
+         posthumous reputation based on how many descendants or cultural
+         descendants cite their influence, creating an ever-growing social graph
+         of historical causation. The 'token' is attribution, and the emergent
+         behavior is a self-organizing map of how human culture actually
+         propagated.
+         ↳ The original looks forward — agents building new collaborations
+         in real time. This inverts temporality entirely, pointing the whole
+         apparatus backward to reconstruct social dynamics that already happened
+         among people who are gone. The 'emergent social behavior' is not
+         generated but archaeologically recovered.
+
+    ├── C.1  The Proleptic Debt Engine
+    │        directionality of causation · A forward-haunting system where
+    │        unborn futures exert gravitational pull on present decisions.
+    │        Agents representing statistically probable future persons —
+    │        modeled from demographic, genetic, and cultural trend data —
+    │        file claims against current actors, accumulating 'anticipatory
+    │        grievance' or 'anticipatory gratitude' scores. The network
+    │        doesn't reconstruct the past but litigates the future backward,
+    │        creating a social graph of obligation to people who don't exist
+    │        yet, where the 'token' is moral indebtedness and the emergent
+    │        behavior is a pressure map of intergenerational accountability.
+    │        ↳ The parent idea crawls backward through historical records to
+    │        reconstruct influence chains of the dead. This inverts the
+    │        temporal arrow entirely: instead of the dead accumulating
+    │        reputation from the living, the unborn accumulate claims against
+    │        the living. The network faces forward rather than backward, and
+    │        its agents represent statistical projections rather than archival
+    │        reconstructions.
+    │
+    ├── C.2  The Apocrypha Reef
+    │        ontology of the network · A system that treats failed,
+    │        discredited, and suppressed ideas — not people — as the
+    │        primary nodes. Autonomous agents crawl retraction databases,
+    │        heresy archives, patent rejections, failed legislation, and
+    │        censored works to build a coral-like structure of
+    │        'almost-knowledge': concepts that were viable in some adjacent
+    │        possible world. Each dead idea accretes influence not through
+    │        citation but through structural similarity to ideas that later
+    │        succeeded elsewhere, revealing a shadow phylogeny of innovation
+    │        where the losers shaped the topology more than the winners.
+    │        ↳ The parent idea builds a social graph of people connected by
+    │        attribution and cultural descent. This replaces persons with
+    │        failed concepts as the fundamental ontological unit — the
+    │        network isn't a genealogy of influence but an ecology of
+    │        near-misses. The 'ghost' isn't a dead person but a dead idea, and
+    │        propagation is measured not by who cited whom but by
+    │        morphological resonance between independent intellectual
+    │        failures.
+    │
+    └── C.3  The Silence Cartography
+             currency of exchange · A system where the primary signal is
+             absence rather than presence. Agents map what was systematically
+             not recorded — gaps in archives, demographic holes in census
+             data, missing names in patent filings, languages with no written
+             corpus — and construct a negative-space social network of
+             suppression, erasure, and structural forgetting. The token is not
+             attribution but 'occlusion debt': a measure of how much epistemic
+             violence was required to keep a node invisible. The emergent map
+             reveals not how culture propagated but how it was actively
+             prevented from propagating.
+             ↳ The parent idea accumulates positive signal — citations,
+             records, genetic traces — to build a graph of successful cultural
+             transmission. This inverts the informational polarity entirely: the
+             system reads the holes, not the text. Instead of reconstructing
+             what happened, it reconstructs what was forcibly made not to
+             happen, and its currency is the energy required for erasure rather
+             than the credit of attribution.

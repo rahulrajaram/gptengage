@@ -4,6 +4,7 @@ Complete reference documentation for all GPT Engage commands.
 
 ## Table of Contents
 
+- [gptengage grill](#gptengage-grill) - Bounded alternating roles with private checkpoints
 - [gptengage invoke](#gptengage-invoke) - Invoke a specific LLM CLI
 - [gptengage debate](#gptengage-debate) - Run multi-AI debates
 - [gptengage generate-agents](#gptengage-generate-agents) - Generate agent definitions for debates
@@ -35,6 +36,7 @@ gptengage invoke <CLI> <PROMPT> [OPTIONS]
 
 | Option | Description | Default |
 |--------|-------------|---------|
+| `--output <FORMAT>` | Plain response (`text`) or structured invocation report (`json`) | text |
 | `--session <NAME>` | Create or continue a named session | (none - one-shot) |
 | `--topic <DESC>` | Set the session topic (auto-generated if omitted) | Auto-generated from prompt |
 | `--context-file <PATH>` | Include file contents in the prompt | (none) |
@@ -1107,3 +1109,34 @@ do
   echo "---" >> debates.md
 done
 ```
+
+## gptengage grill
+
+```text
+gptengage grill TOPIC --griller BACKEND --respondent BACKEND
+  --griller-instructions FILE --respondent-instructions FILE --run-dir NEW_DIR
+  [--griller-model MODEL] [--respondent-model MODEL]
+  [--exchanges N] [--timeout SECONDS] [--show-dialogue]
+```
+
+Both backends and role instruction files are required. Defaults are 3 exchanges
+and 120 seconds per direct invocation. Invalid bounds, empty role instructions,
+unsupported explicit model forwarding and an existing run directory are rejected
+before the first call. No write-access flag is offered in this initial mode;
+requested restrictions do not establish actual enforcement.
+
+The command emits JSON status, counts and checkpoint location. Dialogue is opt-in;
+its text is model-authored and may echo input. Private numbered checkpoints retain
+ordered call slots and full reports, including failures. Failure or persistence
+error stops further calls and exits nonzero. A pending slot is completion-unknown,
+not an automatically resumable call. No resume/replay, gradient or hard token cap
+is offered. See the README for privacy and platform limitations.
+
+### Invocation report interpretation
+
+`invoke --output json` keeps stdout machine-readable and sends progress notices to
+stderr. Invocation failures produce a report and nonzero exit where the invocation
+boundary was reached; argument/input errors may occur before a report exists.
+`outcome` is process/adapter status; `completion` is a separate backend observation.
+Unknown usage is not zero usage, a submitted model is not an observed effective
+model, and submitted sandbox arguments do not prove restriction enforcement.

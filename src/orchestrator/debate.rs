@@ -1,6 +1,6 @@
 //! Debate orchestration - Run multi-round debates
 
-use crate::invokers::{get_invoker, AccessMode};
+use crate::invokers::{get_invoker, AccessMode, InvocationOutcome, InvocationReport};
 use serde::{Deserialize, Serialize};
 use tokio::task;
 
@@ -190,6 +190,8 @@ pub struct RoundResponse {
     pub cli: String,
     pub persona: Option<String>,
     pub response: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub invocation: Option<InvocationReport>,
 }
 
 impl RoundResponse {
@@ -230,6 +232,23 @@ pub struct DebateResult {
     pub synthesis: Option<Synthesis>,
 }
 
+fn round_response(participant: &Participant, report: InvocationReport) -> RoundResponse {
+    RoundResponse {
+        cli: participant.cli.clone(),
+        persona: participant.persona.clone(),
+        response: if report.is_success() {
+            report.stdout.clone()
+        } else {
+            format!(
+                "Invocation {:?}: {}",
+                report.outcome,
+                report.diagnostic.as_deref().unwrap_or("unknown failure")
+            )
+        },
+        invocation: Some(report),
+    }
+}
+
 impl DebateOrchestrator {
     /// Run a debate with specific participants
     pub async fn run_debate_with_participants(
@@ -246,7 +265,7 @@ impl DebateOrchestrator {
         let mut rounds: Vec<Vec<RoundResponse>> = Vec::new();
 
         for round in 1..=num_rounds {
-            println!("Running round {} of {}...", round, num_rounds);
+            eprintln!("Running round {} of {}...", round, num_rounds);
 
             // Build base context for this round
             let mut base_context = format!("Topic: {}\n\nRound {}\n\n", topic, round);
@@ -254,7 +273,12 @@ impl DebateOrchestrator {
             if round > 1 {
                 if let Some(prev_round) = rounds.last() {
                     base_context.push_str("Previous responses:\n");
-                    for response in prev_round.iter() {
+                    for response in prev_round.iter().filter(|response| {
+                        response
+                            .invocation
+                            .as_ref()
+                            .is_none_or(InvocationReport::is_success)
+                    }) {
                         base_context.push_str(&format!(
                             "{}: {}\n\n",
                             response.display_name(),
@@ -274,48 +298,28 @@ impl DebateOrchestrator {
                 let ctx = participant_clone.build_prompt_with_persona(&base_context);
 
                 let task = task::spawn(async move {
-                    let invoker = match get_invoker(&participant_clone.cli) {
-                        Some(inv) => inv,
-                        None => {
-                            eprintln!(
-                                "Unknown CLI '{}', skipping participant",
-                                participant_clone.cli
-                            );
-                            return None;
+                    let report = match get_invoker(&participant_clone.cli) {
+                        Some(invoker) => {
+                            invoker
+                                .invoke_report(
+                                    &ctx,
+                                    timeout,
+                                    access_mode,
+                                    participant_clone.model.as_deref(),
+                                )
+                                .await
                         }
+                        None => InvocationReport {
+                            outcome: InvocationOutcome::Rejected,
+                            diagnostic: Some(format!("Unknown CLI '{}'", participant_clone.cli)),
+                            ..InvocationReport::unknown(
+                                &participant_clone.cli,
+                                participant_clone.model.as_deref(),
+                                access_mode,
+                            )
+                        },
                     };
-
-                    if !invoker.is_available() {
-                        eprintln!(
-                            "{} is not available, skipping",
-                            participant_clone.display_name()
-                        );
-                        return None;
-                    }
-
-                    match invoker
-                        .invoke(
-                            &ctx,
-                            timeout,
-                            access_mode,
-                            participant_clone.model.as_deref(),
-                        )
-                        .await
-                    {
-                        Ok(response) => Some(RoundResponse {
-                            cli: participant_clone.cli.clone(),
-                            persona: participant_clone.persona.clone(),
-                            response,
-                        }),
-                        Err(e) => {
-                            eprintln!(
-                                "{} invocation failed: {}",
-                                participant_clone.display_name(),
-                                e
-                            );
-                            None
-                        }
-                    }
+                    round_response(&participant_clone, report)
                 });
 
                 tasks.push(task);
@@ -324,18 +328,35 @@ impl DebateOrchestrator {
             // Wait for all tasks to complete
             let results = futures::future::join_all(tasks).await;
 
-            let round_responses: Vec<RoundResponse> =
-                results.into_iter().flatten().flatten().collect();
-
-            // Ensure at least one responder per round
-            if round_responses.is_empty() {
-                return Err(anyhow::anyhow!(
-                    "No participants were able to respond in round {}. Please ensure their CLIs are installed and available.",
-                    round
-                ));
-            }
-
+            let round_responses: Vec<RoundResponse> = results
+                .into_iter()
+                .zip(&participants)
+                .map(|(result, participant)| match result {
+                    Ok(response) => response,
+                    Err(error) => round_response(
+                        participant,
+                        InvocationReport {
+                            outcome: InvocationOutcome::Failed,
+                            diagnostic: Some(format!("Invocation task failed: {error}")),
+                            ..InvocationReport::unknown(
+                                &participant.cli,
+                                participant.model.as_deref(),
+                                access_mode,
+                            )
+                        },
+                    ),
+                })
+                .collect();
+            let all_failed = round_responses.iter().all(|response| {
+                response
+                    .invocation
+                    .as_ref()
+                    .is_some_and(|report| !report.is_success())
+            });
             rounds.push(round_responses);
+            if all_failed {
+                break;
+            }
         }
 
         Ok(DebateResult {
@@ -357,7 +378,12 @@ impl DebateOrchestrator {
         let mut transcript = String::new();
         for (round_num, round_responses) in result.rounds.iter().enumerate() {
             transcript.push_str(&format!("ROUND {}:\n", round_num + 1));
-            for response in round_responses {
+            for response in round_responses.iter().filter(|response| {
+                response
+                    .invocation
+                    .as_ref()
+                    .is_none_or(InvocationReport::is_success)
+            }) {
                 transcript.push_str(&format!(
                     "{}:\n{}\n\n",
                     response.display_name(),
@@ -469,6 +495,7 @@ mod tests {
     #[test]
     fn test_round_response_creation() {
         let response = RoundResponse {
+            invocation: None,
             cli: "Claude".to_string(),
             persona: None,
             response: "This is Claude's perspective".to_string(),
@@ -483,6 +510,7 @@ mod tests {
     #[test]
     fn test_round_response_with_persona() {
         let response = RoundResponse {
+            invocation: None,
             cli: "Claude".to_string(),
             persona: Some("CEO".to_string()),
             response: "From a CEO perspective...".to_string(),
@@ -496,6 +524,7 @@ mod tests {
     #[test]
     fn test_round_response_serialization() {
         let response = RoundResponse {
+            invocation: None,
             cli: "Codex".to_string(),
             persona: Some("Architect".to_string()),
             response: "This is Codex's perspective".to_string(),
@@ -516,11 +545,13 @@ mod tests {
             topic: "Should we use Rust?".to_string(),
             rounds: vec![vec![
                 RoundResponse {
+                    invocation: None,
                     cli: "Claude".to_string(),
                     persona: None,
                     response: "Yes, Rust is great".to_string(),
                 },
                 RoundResponse {
+                    invocation: None,
                     cli: "Gemini".to_string(),
                     persona: None,
                     response: "Go is simpler".to_string(),
@@ -541,11 +572,13 @@ mod tests {
         let rounds = vec![
             vec![
                 RoundResponse {
+                    invocation: None,
                     cli: "Claude".to_string(),
                     persona: None,
                     response: "Round 1: Claude's view".to_string(),
                 },
                 RoundResponse {
+                    invocation: None,
                     cli: "Codex".to_string(),
                     persona: None,
                     response: "Round 1: Codex's view".to_string(),
@@ -554,11 +587,13 @@ mod tests {
             // Round 2
             vec![
                 RoundResponse {
+                    invocation: None,
                     cli: "Claude".to_string(),
                     persona: None,
                     response: "Round 2: Claude's refined view".to_string(),
                 },
                 RoundResponse {
+                    invocation: None,
                     cli: "Codex".to_string(),
                     persona: None,
                     response: "Round 2: Codex's refined view".to_string(),
@@ -586,11 +621,13 @@ mod tests {
             topic: "Tabs vs Spaces".to_string(),
             rounds: vec![vec![
                 RoundResponse {
+                    invocation: None,
                     cli: "Claude".to_string(),
                     persona: None,
                     response: "Tabs are consistent".to_string(),
                 },
                 RoundResponse {
+                    invocation: None,
                     cli: "Gemini".to_string(),
                     persona: None,
                     response: "Spaces are standard".to_string(),
@@ -623,6 +660,7 @@ mod tests {
     #[test]
     fn test_round_response_clone() {
         let response1 = RoundResponse {
+            invocation: None,
             cli: "Claude".to_string(),
             persona: Some("CEO".to_string()),
             response: "Test response".to_string(),
@@ -639,6 +677,7 @@ mod tests {
     fn test_round_response_with_long_content() {
         let long_response = "a".repeat(10000);
         let response = RoundResponse {
+            invocation: None,
             cli: "Claude".to_string(),
             persona: None,
             response: long_response.clone(),
@@ -658,6 +697,7 @@ mod tests {
             gptengage_version: Some("0.1.0".to_string()),
             topic: "Test with 特殊 characters & symbols! 🚀".to_string(),
             rounds: vec![vec![RoundResponse {
+                invocation: None,
                 cli: "Claude".to_string(),
                 persona: None,
                 response: "Response with unicode: émojis: 🎉".to_string(),
@@ -698,5 +738,39 @@ mod tests {
         assert!(prompt2.contains("ROLE CONTEXT"));
         assert!(prompt2.contains("CEO"));
         assert!(prompt2.contains(base));
+    }
+    #[tokio::test]
+    async fn unknown_participant_failure_is_preserved_and_stops_empty_rounds() {
+        let participant = Participant::with_model(
+            "gptengage-nonexistent-fixture".into(),
+            Some("requested".into()),
+            None,
+        );
+        let result = DebateOrchestrator::run_debate_with_participants(
+            "topic",
+            vec![participant],
+            3,
+            1,
+            AccessMode::ReadOnly,
+        )
+        .await
+        .unwrap();
+        assert_eq!(result.rounds.len(), 1);
+        let report = result.rounds[0][0].invocation.as_ref().unwrap();
+        assert_eq!(report.outcome, InvocationOutcome::Rejected);
+        assert_eq!(report.requested_model.as_deref(), Some("requested"));
+    }
+
+    #[test]
+    fn failed_response_has_explicit_diagnostic_and_report() {
+        let participant = Participant::new("fixture".into(), None);
+        let report = InvocationReport {
+            outcome: InvocationOutcome::TimedOut,
+            diagnostic: Some("timeout".into()),
+            ..InvocationReport::unknown("fixture", None, AccessMode::ReadOnly)
+        };
+        let response = round_response(&participant, report);
+        assert!(response.response.contains("TimedOut"));
+        assert!(!response.invocation.unwrap().is_success());
     }
 }

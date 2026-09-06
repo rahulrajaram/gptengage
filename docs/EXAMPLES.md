@@ -1093,3 +1093,21 @@ $ gptengage status
 $ gptengage invoke claude "First question" -s my-analysis
 $ gptengage invoke claude "Related follow-up" -s my-analysis
 ```
+
+## Bounded proposal grilling
+
+Prepare two local role files with your griller/question policy and respondent
+research/evidence policy. Review the topic and files as outbound data for both
+selected backends before invoking:
+
+```bash
+gptengage grill "Review the proposed migration" \
+  --griller codex --respondent claude \
+  --griller-instructions ./griller.txt --respondent-instructions ./respondent.txt \
+  --exchanges 2 --timeout 120 --run-dir ./migration-grill-private
+```
+
+This makes at most four direct invocations and leaves private inspection state.
+Add `--show-dialogue` only when you want model-authored Q/A printed. This command
+does not implement automatic resume or the advanced grilling skill's lattice and
+closing-debate semantics; the host owns evidence review and the final recommendation.

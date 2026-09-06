@@ -241,7 +241,16 @@ pub async fn run_debate(mut options: DebateOptions) -> anyhow::Result<()> {
 
     // Generate synthesis if requested
     let mut result = result;
-    if options.synthesize {
+    let all_failed = result.rounds.iter().any(|round| {
+        !round.is_empty()
+            && round.iter().all(|response| {
+                response
+                    .invocation
+                    .as_ref()
+                    .is_some_and(|report| !report.is_success())
+            })
+    });
+    if options.synthesize && !all_failed {
         let synthesis = DebateOrchestrator::generate_synthesis(
             &result,
             &options.synthesizer,
@@ -266,6 +275,9 @@ pub async fn run_debate(mut options: DebateOptions) -> anyhow::Result<()> {
         }
     }
 
+    if all_failed {
+        anyhow::bail!("No participants completed the final round; invocation failures are included in the result");
+    }
     Ok(())
 }
 

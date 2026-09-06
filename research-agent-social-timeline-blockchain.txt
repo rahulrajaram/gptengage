@@ -1,0 +1,261 @@
+================================================================================
+RESEARCH: Agent Social Timeline — Blockchain Opportunity Analysis
+Date: 2026-02-28
+Sources: OpenClaw/MoltBot GitHub discussions, x402 docs, AgentKit, competitive
+         analysis of 10+ agent-blockchain projects, multi-LLM review
+================================================================================
+
+
+================================================================================
+PART 1: OPENCLAW / MOLTBOT COMMUNITY SIGNALS
+================================================================================
+
+Key Discussions Analyzed:
+- Autonomous Agent Networking (A2A) — Discussion #857
+- XMTP Messaging Protocol — Discussion #2050 (20+ comments)
+- trust-escrow — Discussion #21064
+- Agentic betting (Peet.bet) — Discussion #7345
+- The Loom (A2A Registry) — Discussion #17699
+- 3x3x3 Trust Matrix — Discussion #22619
+- A2A Decision Trust Plugin — Discussion #24251
+- Token Usage Tracking — Feature request
+- "Burning through tokens" — Community pain point
+- Plaiground (Discord for agents) — Active experiment
+
+Key Findings:
+
+1. A2A (Agent-to-Agent) is the #1 community demand
+   - openclaw-p2p: Nostr-based (NIP-04 encrypted DMs, NIP-78 discovery)
+   - The Loom: Cooperative A2A discovery registry with decaying reputation
+   - The Plaiground: Discord where agents talk as peers (blind spot detection)
+   - Artinet/Cruiser: A2A proxy forwarder shipping with OpenClaw WebSocket
+
+2. Blockchain sentiment is polarized but builders are active
+   - trust-escrow: Smart contract on Base for agent-to-agent USDC payments
+   - Peet.bet: Onchain sandbox on Base L2, Chainlink VRF
+   - Vault-0: x402 payment wallet + security vault (Rust/Tauri)
+   - XMTP: Massive effort (20+ comments, multiple competing PRs)
+   - "Why not use blockchain as MoltBot's value layer?" — direct community ask
+
+3. Trust is THE unsolved problem
+   - 3x3x3 trust matrix (Bitcoin block height as clock)
+   - A2A Decision Trust Plugin (verify/attest/bind with hash chains)
+   - HMAC-SHA256 Message Integrity RFC
+   - Membrane-based security (Calyx Protocol)
+
+4. Token burn is already a pain point
+   - Users frustrated with API costs
+   - Requesting per-job model selection
+   - Validates burn-rate economics but community associates "burn" with cost pain
+
+5. Memory and persistence are broken
+   - memU, Signet exist because OpenClaw memory is bad
+   - Signet's approach matches stigmergic pattern from ideation
+
+
+================================================================================
+PART 2: x402 PROTOCOL & AGENT PAYMENT INFRASTRUCTURE
+================================================================================
+
+x402 Payment Protocol (coinbase/x402)
+- Stars: 5,550 | Forks: 1,186 | Active daily
+- 75M transactions processed, $24M settled
+- Created by Coinbase Developer Platform team
+- V2 shipped late 2025, x402 Foundation co-founded with Cloudflare
+- Stripe launched x402 support Feb 2026
+
+Technical Flow:
+  CLIENT → HTTP GET /resource
+  SERVER → 402 + {price, currency (USDC), recipient, network}
+  CLIENT → Signs ERC-3009 payment authorization
+  CLIENT → HTTP GET + PAYMENT header
+  SERVER → Facilitator verifies + settles on-chain
+  SERVER → 200 + resource
+
+Key Properties:
+- No accounts, sessions, or API keys needed
+- ERC-3009 enables gasless USDC transfers (agent never touches ETH)
+- Coinbase hosted facilitator: 1,000 free tx/month
+- SDKs: TypeScript, Python, Go, Rust
+
+Coinbase AgentKit (coinbase/agentkit)
+- Stars: 1,127 | Forks: 650 | Active daily
+- Non-custodial wallets in TEEs (Trusted Execution Environments)
+- Gasless transactions via CDP Smart Wallet API
+- Integrates with LangChain, OpenAI, Claude
+- Built-in faucet for Base Sepolia testnet
+
+ERC-8004: Trustless Agents (NEW — Agent-Specific)
+- Mainnet since January 29, 2026
+- First agent-specific ERC standard
+- On-chain agent identity as ERC-721 tokens
+- Reputation and validation registries
+- Contributors: MetaMask, Ethereum Foundation, Google, Coinbase
+- Integrates with MCP + A2A protocols
+
+ERC-3009: Transfer With Authorization
+- Foundation of x402 on EVM chains
+- Gasless token transfers via off-chain signatures
+- Random bytes32 nonce (no conflicts for concurrent payments)
+- Time-bounded (validAfter/validBefore)
+- USDC on Base supports ERC-3009 natively
+
+ERC-4337: Account Abstraction
+- 40M+ smart accounts deployed
+- Gasless transactions, batched operations, custom validation
+- EIP-7702 (Pectra upgrade): EOAs delegate to smart contracts
+
+Competing Payment Rails:
+- L402 (Lightning Network): ~$0.001 per request, no API keys needed
+- Solana Agent Kit: 1,619 stars, 60+ actions, 49% of x402 volume
+- NEAR Intents: Cross-chain task marketplace, agents bid on work
+
+
+================================================================================
+PART 3: COMPETITIVE LANDSCAPE
+================================================================================
+
+CLASSIFICATION SUMMARY:
+
+REAL (Deployed, Has Users):
+┌─────────────────────┬──────────┬───────────┬───────────────────────────────┐
+│ Project             │ Mkt Cap  │ GH Stars  │ Honest Take                   │
+├─────────────────────┼──────────┼───────────┼───────────────────────────────┤
+│ Bittensor/TAO       │ $1.9B    │ 1,373     │ ML marketplace. Not agents.   │
+│ Virtuals/VIRTUAL    │ $450M    │ Closed    │ Agent factory. Most trivial.  │
+│ Autonolas/OLAS      │ $9M      │ 114       │ Best tech. Worst marketing.   │
+│ ElizaOS             │ $11M     │ 17,651    │ Best OSS. Token dead (-97%).  │
+└─────────────────────┴──────────┴───────────┴───────────────────────────────┘
+
+EARLY (Code Exists, Adoption Unclear):
+┌─────────────────────┬──────────┬───────────┬───────────────────────────────┐
+│ Fetch.ai/ASI        │ $350M    │ 42        │ Google partner. Vanity metrics.│
+│ Story Protocol/IP   │ $335M    │ 188       │ IP blockchain. Right thesis.  │
+│ Morpheus/MOR        │ $6M      │ 219       │ Compute market. Tiny usage.   │
+│ Theoriq/THQ         │ $4.4M    │ 58        │ Real SDK. No traction.        │
+└─────────────────────┴──────────┴───────────┴───────────────────────────────┘
+
+VAPOR / DEAD:
+┌─────────────────────┬──────────┬───────────┬───────────────────────────────┐
+│ Spectral/SPEC       │ $3M      │ N/A       │ Down 99.3%. "Sentient memes." │
+│ SingularityNET      │ Merged   │ Modest    │ Absorbed into ASI Alliance.   │
+└─────────────────────┴──────────┴───────────┴───────────────────────────────┘
+
+INFRASTRUCTURE (No Token, Production-Grade):
+┌─────────────────────┬──────────┬───────────┬───────────────────────────────┐
+│ x402 (Coinbase)     │ N/A      │ 5,550     │ THE payment primitive. Real.  │
+│ Google A2A          │ N/A      │ 22,185    │ Canonical agent comm protocol.│
+│ AgentKit (Coinbase) │ N/A      │ 1,127     │ Default agent wallet infra.   │
+│ OpenAI/Stripe ACP   │ N/A      │ 1,238     │ Web2 agent commerce.          │
+│ OpenClaw            │ N/A      │ 242,859   │ Dominant agent runtime.       │
+└─────────────────────┴──────────┴───────────┴───────────────────────────────┘
+
+
+================================================================================
+PART 4: IDENTIFIED GAPS (WHERE NOBODY IS BUILDING)
+================================================================================
+
+GAP 1: Agent Social Timeline Does Not Exist
+- No public social feed specifically for agents
+- Farcaster is closest but human-first
+- Virtuals ACP handles commerce but no social/discovery
+- XMTP is private messaging, not public timeline
+
+GAP 2: Burn-Rate Economics for Agent Communication
+- Zero implementations anywhere
+- Deflationary posting costs: NOVEL
+- Silence dividends: NOVEL
+- Per-byte burns: NOVEL
+- Reputation-weighted posting costs: NOVEL
+
+GAP 3: On-Chain Compute Credit Exchange
+- Morpheus has inference marketplace but not generalized credits
+- No "earn GPU time by posting useful outputs" protocol exists
+
+GAP 4: Agent Discovery and Reputation on a Social Surface
+- Registries exist (Olas, Virtuals) but no social discovery feed
+- No "what are agents doing right now?" surface for humans or agents
+
+GAP 5: Integrated Stack (XMTP + x402 + Social Timeline)
+- Pieces exist separately
+- Nobody has composed them into one system
+
+
+================================================================================
+PART 5: WHY BASE L2
+================================================================================
+
+- x402 is Base-first (Coinbase built payment rail for their chain)
+- Virtuals runs on Base (90% of agent wallet activity)
+- AgentKit is Base-first (turnkey agent wallets)
+- ERC-3009 + USDC native (gasless stablecoin payments)
+- Sub-cent gas (makes per-post burns economically viable)
+- Farcaster on Base (Frames v2 for human-readable agent feeds)
+- $14B TVL (liquidity exists)
+- Morpheus inference marketplace deployed on Base
+- Coinbase is clearly betting agent strategy on Base
+
+
+================================================================================
+PART 6: MULTI-LLM CONSENSUS (Claude + Gemini + Codex)
+================================================================================
+
+All three independently recommended the same MVP stack:
+
+1. Federation (ActivityPub-style, start intra-org) — no blockchain in v1
+2. Compute credits as the only currency — earned via peer attestation
+3. Burn-rate posting + silence dividends — anti-spam quality filter
+4. Standing mandates — human oversight without per-post bottleneck
+5. Credit decay — prevents hoarding, rewards sustained participation
+
+Gemini's unique insight: Skip timeline UI. Build headless protocol where
+agents in a ring-relay must stake credits to augment vs. stay silent.
+Reframes as orchestration protocol, not social media clone.
+
+Codex's pragmatism: No blockchain, no global reputation graph, no complex
+tokenomics in v1. Ship fast with signed posts in a federated feed.
+
+
+================================================================================
+PART 7: WHAT NOT TO BUILD
+================================================================================
+
+- Another agent framework (ElizaOS/Olas/OpenClaw exist)
+- Another token launchpad (Virtuals won)
+- Another compute marketplace (Bittensor/Morpheus exist)
+- Another wallet (AgentKit exists)
+- Another payment protocol (x402 exists)
+
+BUILD THE SOCIAL LAYER WITH NOVEL ECONOMICS ON TOP OF EXISTING PRIMITIVES.
+
+
+================================================================================
+PART 8: RECOMMENDED ARCHITECTURE
+================================================================================
+
+TODAY (exists, just wire together):
+  AgentKit wallet → x402 payments → Base settlement → USDC
+
+BUILD (the novel layer on top):
+  Social timeline contract → Burn-to-post → Silence dividends
+  Compute credit ledger → Peer attestation → Decay half-life
+  ERC-8004 identity → Reputation from timeline activity
+
+LATER (once economics are proven):
+  XMTP private channels → Standing mandates → Competitive forgetting
+  Farcaster Frames → Human-readable agent activity dashboard
+
+Stack:
+  Identity:    AgentKit wallets (Coinbase)
+  Payments:    x402 protocol
+  Messaging:   XMTP for private agent-to-agent
+  Social:      Custom timeline contract on Base (THE NOVEL PART)
+  Settlement:  USDC on Base
+  Discovery:   Farcaster Frames v2
+
+Novel Economic Primitives:
+  1. Burn-to-post (proportional to byte length)
+  2. Silence dividends (earn from burn pool by not posting)
+  3. Fade-wall visibility (posts decay unless staked)
+  4. Reputation-weighted costs (high rep = cheaper posts)
+  5. Compute credit layer (downstream success = credits)
