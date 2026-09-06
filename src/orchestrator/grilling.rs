@@ -1,4 +1,5 @@
 //! Sequential grilling with private, immutable checkpoints. No resume or replay.
+#[cfg(unix)]
 use std::fs::{self, File, OpenOptions};
 #[cfg(unix)]
 use std::io::Write;
