@@ -7,6 +7,7 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 const CLAUDE_NESTING_ENV_VARS: &[&str] = &["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"];
 const OUTPUT_LIMIT: usize = 16 * 1024 * 1024;
 
+#[cfg_attr(not(unix), allow(dead_code))]
 struct ProcessGroup(Option<u32>);
 impl Drop for ProcessGroup {
     fn drop(&mut self) {

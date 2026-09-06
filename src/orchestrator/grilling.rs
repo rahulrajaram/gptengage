@@ -1,5 +1,6 @@
 //! Sequential grilling with private, immutable checkpoints. No resume or replay.
 use std::fs::{self, File, OpenOptions};
+#[cfg(unix)]
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -251,6 +252,7 @@ pub struct PublicRun {
 
 /// Exclusive directory creation prevents overwriting a prior run, including
 /// symlink destinations. Files are private from creation, independent of umask.
+#[cfg_attr(not(unix), allow(dead_code))]
 struct Checkpoints {
     directory: PathBuf,
     sequence: u64,
