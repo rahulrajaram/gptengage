@@ -252,11 +252,14 @@ pub struct PublicRun {
 
 /// Exclusive directory creation prevents overwriting a prior run, including
 /// symlink destinations. Files are private from creation, independent of umask.
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(unix)]
 struct Checkpoints {
     directory: PathBuf,
     sequence: u64,
 }
+
+#[cfg(not(unix))]
+struct Checkpoints;
 
 impl Checkpoints {
     #[cfg(unix)]

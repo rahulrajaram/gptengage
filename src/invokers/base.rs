@@ -7,8 +7,9 @@ use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 const CLAUDE_NESTING_ENV_VARS: &[&str] = &["CLAUDECODE", "CLAUDE_CODE_ENTRYPOINT"];
 const OUTPUT_LIMIT: usize = 16 * 1024 * 1024;
 
-#[cfg_attr(not(unix), allow(dead_code))]
+#[cfg(unix)]
 struct ProcessGroup(Option<u32>);
+#[cfg(unix)]
 impl Drop for ProcessGroup {
     fn drop(&mut self) {
         #[cfg(unix)]
@@ -74,6 +75,7 @@ pub async fn execute_command_report(
             }
         }
     };
+    #[cfg(unix)]
     let group = ProcessGroup(child.id());
     let mut stdin = child.stdin.take().expect("piped stdin");
     let stdout = child.stdout.take().expect("piped stdout");
@@ -93,6 +95,7 @@ pub async fn execute_command_report(
     };
     let result = tokio::time::timeout(std::time::Duration::from_secs(timeout), execution).await;
     // Terminate remaining descendants on every exit, including successful parent exit.
+    #[cfg(unix)]
     drop(group);
     let elapsed_ms = started.elapsed().as_millis().min(u64::MAX as u128) as u64;
     match result {
